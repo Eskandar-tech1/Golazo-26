@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Golazo 26 · v0.6</title>
+<title>Golazo 26 · v0.7</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -127,6 +127,63 @@ body.replay .replay-strip{opacity:1;transform:none}
 .tc-name{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:.04em;line-height:1.1}
 .tc-facewrap{position:absolute;top:8px;right:8px}
 .tc-face{width:40px;height:40px;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35)}
+
+/* step nav */
+.steps{display:flex;gap:8px;margin-bottom:18px}
+.step-pill{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-dim);
+  padding:4px 12px;border:1px solid var(--line);border-radius:20px}
+.step-pill.on{color:#0A1114;background:var(--volcanic);border-color:var(--volcanic)}
+.pane{display:none}
+.pane.on{display:block}
+.pane-actions{display:flex;gap:12px;align-items:center;margin-top:20px;flex-wrap:wrap}
+.ghost-btn{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:.1em;
+  background:transparent;border:1px solid var(--line);color:var(--bone-dim);
+  border-radius:3px;padding:10px 20px;cursor:pointer}
+.ghost-btn:hover{color:var(--bone);border-color:var(--bone-dim)}
+
+/* player card */
+.squad{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:12px}
+.pcard{
+  position:relative;border-radius:9px;padding:10px 8px 9px;cursor:pointer;
+  background:linear-gradient(160deg,var(--c1),var(--c2));color:var(--ctext);
+  border:2px solid rgba(255,255,255,.25);overflow:visible;transition:transform .12s;
+  box-shadow:0 6px 18px rgba(0,0,0,.4)
+}
+.pcard:hover{transform:translateY(-3px)}
+.pcard.picked{outline:3px solid #F2EDE3;outline-offset:2px}
+.pcard.dim{opacity:.4}
+.pc-ovr{font-family:var(--display);font-weight:700;font-size:26px;line-height:1}
+.pc-pos{font-size:9px;letter-spacing:.16em;opacity:.85;margin-top:-2px}
+.pc-face{width:56px;height:56px;border-radius:50%;margin:5px auto 4px;display:block;
+  box-shadow:0 3px 8px rgba(0,0,0,.35);background:rgba(255,255,255,.15)}
+.pc-name{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.03em;text-align:center;line-height:1}
+.pc-tier{font-size:7.5px;letter-spacing:.2em;text-align:center;opacity:.85;margin-top:3px;text-transform:uppercase}
+.pc-stats{display:flex;justify-content:space-between;margin-top:6px;font-size:8.5px;font-variant-numeric:tabular-nums;opacity:.92}
+.pc-stats b{font-weight:700}
+/* spikes for elite/phenom */
+.pcard.spiked::before{
+  content:'';position:absolute;inset:-8px;border-radius:14px;z-index:-1;
+  background:
+    conic-gradient(from 0deg, transparent 0 8deg, var(--spike) 8deg 12deg, transparent 12deg 30deg,
+    var(--spike) 30deg 34deg, transparent 34deg 52deg, var(--spike) 52deg 56deg, transparent 56deg 74deg,
+    var(--spike) 74deg 78deg, transparent 78deg 96deg, var(--spike) 96deg 100deg, transparent 100deg 118deg,
+    var(--spike) 118deg 122deg, transparent 122deg 140deg, var(--spike) 140deg 144deg, transparent 144deg 162deg,
+    var(--spike) 162deg 166deg, transparent 166deg 184deg, var(--spike) 184deg 188deg, transparent 188deg 206deg,
+    var(--spike) 206deg 210deg, transparent 210deg 228deg, var(--spike) 228deg 232deg, transparent 232deg 250deg,
+    var(--spike) 250deg 254deg, transparent 254deg 272deg, var(--spike) 272deg 276deg, transparent 276deg 294deg,
+    var(--spike) 294deg 298deg, transparent 298deg 316deg, var(--spike) 316deg 320deg, transparent 320deg 338deg,
+    var(--spike) 338deg 342deg, transparent 342deg 360deg);
+  filter:drop-shadow(0 0 6px var(--spike));
+}
+@keyframes phenomShift{
+  0%{background:linear-gradient(160deg,#FF5A1F,#7B5EA7)}
+  33%{background:linear-gradient(160deg,#2BD9C4,#FF5A1F)}
+  66%{background:linear-gradient(160deg,#7B5EA7,#2BD9C4)}
+  100%{background:linear-gradient(160deg,#FF5A1F,#7B5EA7)}
+}
+.pcard.phenom{animation:phenomShift 4s linear infinite}
+@keyframes spikeSpin{to{transform:rotate(360deg)}}
+.pcard.phenom.spiked::before{animation:spikeSpin 12s linear infinite}
 .tc-stats{display:flex;gap:8px;margin-top:5px;font-size:8.5px;color:var(--bone-dim);font-variant-numeric:tabular-nums}
 .tc-stats b{color:var(--bone);font-weight:700}
 
@@ -271,31 +328,53 @@ body.touch-on .touch{display:block}
       </div>
     </div>
     <div>
-      <div class="sect">
-        <h2>Your club</h2>
-        <div class="team-grid" id="homeGrid"></div>
+      <div class="steps">
+        <span class="step-pill on" id="pill1">1 · Club</span>
+        <span class="step-pill" id="pill2">2 · Squad</span>
       </div>
-      <div class="sect">
-        <h2>Opponent</h2>
-        <div class="team-grid" id="awayGrid"></div>
-      </div>
-      <div class="row">
-        <label class="field">
-          <span>Your player's name</span>
-          <input id="playerName" maxlength="12" placeholder="ESKANDAR" autocomplete="off">
-        </label>
-        <div class="field">
-          <span>Minutes</span>
-          <div class="seg-group" id="lenGroup">
-            <button type="button" data-min="1">1</button>
-            <button type="button" data-min="2">2</button>
-            <button type="button" data-min="3" class="on">3</button>
-            <button type="button" data-min="5">5</button>
-            <button type="button" data-min="10">10</button>
+
+      <!-- PANE 1: club -->
+      <div class="pane on" id="pane1">
+        <div class="sect">
+          <h2>Your club</h2>
+          <div class="team-grid" id="homeGrid"></div>
+        </div>
+        <div class="sect">
+          <h2>Opponent</h2>
+          <div class="team-grid" id="awayGrid"></div>
+        </div>
+        <div class="row">
+          <label class="field">
+            <span>Your player's name</span>
+            <input id="playerName" maxlength="12" placeholder="ESKANDAR" autocomplete="off">
+          </label>
+          <div class="field">
+            <span>Minutes</span>
+            <div class="seg-group" id="lenGroup">
+              <button type="button" data-min="1">1</button>
+              <button type="button" data-min="2">2</button>
+              <button type="button" data-min="3" class="on">3</button>
+              <button type="button" data-min="5">5</button>
+              <button type="button" data-min="10">10</button>
+            </div>
           </div>
         </div>
+        <div class="pane-actions">
+          <button class="btn" id="toSquadBtn">CHOOSE SQUAD →</button>
+        </div>
       </div>
-      <button class="btn" id="startBtn">KICK OFF</button>
+
+      <!-- PANE 2: squad / player cards -->
+      <div class="pane" id="pane2">
+        <div class="sect">
+          <h2>Pick your five · tap to select</h2>
+          <div class="squad" id="squadGrid"></div>
+        </div>
+        <div class="pane-actions">
+          <button class="ghost-btn" id="backBtn">← Back</button>
+          <button class="btn" id="startBtn">KICK OFF</button>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -688,45 +767,68 @@ const TEAMS = [
       { n:'REWA',     r:'DF', pace:78, shoot:55, skill:72 },
       { n:'COLLINS',  r:'DF', pace:80, shoot:58, skill:74 },
       { n:'TANE',     r:'MF', pace:84, shoot:79, skill:88 },
-      { n:'ESKANDAR', r:'FW', pace:90, shoot:91, skill:92 } ] },
+      { n:'ESKANDAR', r:'FW', pace:96, shoot:97, skill:95 },
+      { n:'KOA',      r:'MF', pace:85, shoot:80, skill:83 },
+      { n:'HEMI',     r:'FW', pace:88, shoot:84, skill:82 } ] },
   { city: 'WELLINGTON', name: 'KRAKEN',   color: 0x2BD9C4, hex: '#2BD9C4', ovr: 80, skin: 0x8D5A3C,
     roster: [
       { n:'VOSS',     r:'GK', pace:72, shoot:38, skill:74 },
       { n:'HARDING',  r:'DF', pace:79, shoot:60, skill:76 },
       { n:'OKAFOR',   r:'DF', pace:83, shoot:62, skill:78 },
       { n:'PETRIE',   r:'MF', pace:82, shoot:82, skill:90 },
-      { n:'MARTELL',  r:'FW', pace:88, shoot:87, skill:86 } ] },
+      { n:'MARTELL',  r:'FW', pace:88, shoot:87, skill:86 },
+      { n:'DELACROIX',r:'MF', pace:84, shoot:83, skill:88 },
+      { n:'NADEAU',   r:'FW', pace:86, shoot:85, skill:84 } ] },
   { city: 'CHRISTCHURCH', name: 'GRIFFINS', color: 0xE8C547, hex: '#E8C547', ovr: 81, skin: 0xB07A50,
     roster: [
       { n:'LOCKE',    r:'GK', pace:70, shoot:35, skill:80 },
       { n:'ABERNATHY',r:'DF', pace:76, shoot:58, skill:82 },
       { n:'SOLE',     r:'DF', pace:78, shoot:60, skill:84 },
       { n:'KIRIONA',  r:'MF', pace:80, shoot:80, skill:86 },
-      { n:'DRAKE',    r:'FW', pace:84, shoot:85, skill:83 } ] },
+      { n:'DRAKE',    r:'FW', pace:84, shoot:85, skill:83 },
+      { n:'VANE',     r:'DF', pace:80, shoot:62, skill:86 },
+      { n:'HOLT',     r:'MF', pace:82, shoot:82, skill:85 } ] },
   { city: 'DUNEDIN',    name: 'FROST',    color: 0x8FB8DE, hex: '#8FB8DE', ovr: 79, skin: 0xE0B58A,
     roster: [
       { n:'NILSEN',   r:'GK', pace:71, shoot:36, skill:88 },
       { n:'TAUFA',    r:'DF', pace:77, shoot:55, skill:86 },
       { n:'BRENNAN',  r:'DF', pace:79, shoot:57, skill:88 },
       { n:'MOSS',     r:'MF', pace:78, shoot:76, skill:80 },
-      { n:'ANDERS',   r:'FW', pace:82, shoot:81, skill:79 } ] },
+      { n:'ANDERS',   r:'FW', pace:82, shoot:81, skill:79 },
+      { n:'FROSK',    r:'DF', pace:78, shoot:58, skill:90 },
+      { n:'BJORN',    r:'MF', pace:80, shoot:78, skill:84 } ] },
   { city: 'PACIFIC',    name: 'TIDE',     color: 0x7B5EA7, hex: '#7B5EA7', ovr: 83, skin: 0x9A6B45,
     roster: [
       { n:'MALO',     r:'GK', pace:73, shoot:42, skill:68 },
       { n:'SEFA',     r:'DF', pace:82, shoot:58, skill:74 },
       { n:'TUPOU',    r:'DF', pace:84, shoot:60, skill:72 },
       { n:'RANGI',    r:'MF', pace:88, shoot:84, skill:85 },
-      { n:'AVIA',     r:'FW', pace:93, shoot:94, skill:90 } ] },
+      { n:'AVIA',     r:'FW', pace:97, shoot:98, skill:96 },
+      { n:'MASINA',   r:'MF', pace:90, shoot:82, skill:85 },
+      { n:'FOLAU',    r:'FW', pace:92, shoot:90, skill:88 } ] },
   { city: 'ROTORUA',    name: 'EMBERS',   color: 0xD64550, hex: '#D64550', ovr: 84, skin: 0x6E4A32,
     roster: [
       { n:'WHATU',    r:'GK', pace:74, shoot:40, skill:76 },
       { n:'PIRIPI',   r:'DF', pace:80, shoot:60, skill:80 },
       { n:'HALLOWAY', r:'DF', pace:81, shoot:63, skill:82 },
       { n:'NGATA',    r:'MF', pace:86, shoot:85, skill:89 },
-      { n:'CRUZ',     r:'FW', pace:89, shoot:90, skill:88 } ] },
+      { n:'CRUZ',     r:'FW', pace:94, shoot:95, skill:93 },
+      { n:'TAMA',     r:'MF', pace:88, shoot:85, skill:89 },
+      { n:'REEVES',   r:'FW', pace:90, shoot:89, skill:87 } ] },
 ];
-function ovrOf(t){ return Math.round(t.roster.reduce((a,p)=>a+(p.pace+p.shoot+p.skill)/3,0)/t.roster.length); }
+// player OVR on the 0-150 scale
+function playerOvr(rp){ return Math.round((rp.pace + rp.shoot + rp.skill) / 3 * 1.55); }
+function teamOvr(t){ return Math.round(t.roster.reduce((a,rp)=>a+playerOvr(rp),0)/t.roster.length); }
+function ovrOf(t){ return teamOvr(t); }
 function ratMul(v, lo, hi){ return lo + (v - 70) / 25 * (hi - lo); }
+// rarity tier by OVR (max 150)
+function tierOf(ovr){
+  if (ovr >= 140) return { key:'phenom', label:'PHENOM',  shift:true,  spikes:true,  c1:'#FF5A1F', c2:'#2BD9C4', text:'#0A1114' };
+  if (ovr >= 125) return { key:'elite',  label:'ELITE',   shift:false, spikes:true,  c1:'#7B5EA7', c2:'#7B5EA7', text:'#F2EDE3' };
+  if (ovr >= 110) return { key:'gold',    label:'GOLD',    shift:false, spikes:false, c1:'#E8C547', c2:'#C9A227', text:'#0A1114' };
+  if (ovr >= 90)  return { key:'silver',  label:'SILVER',  shift:false, spikes:false, c1:'#C7D0D6', c2:'#95A2AB', text:'#0A1114' };
+  return                 { key:'bronze',  label:'BRONZE',  shift:false, spikes:false, c1:'#C08A4E', c2:'#8A6234', text:'#0A1114' };
+}
 
 const players = [];
 function makeTeam(side, t) {   // side: -1 home (defends -x), +1 away
@@ -1584,19 +1686,20 @@ requestAnimationFrame(frame);
 // ---------------------------------------------------------------- BOOT
 let chosenMin = 3;
 let homePick = 0, awayPick = 1;
+let squadPick = [0,1,2,3,4];   // indices into the chosen club's roster (start = default 5)
 
 function teamCard(t, i) {
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'team-card';
   b.dataset.i = i;
-  const star = t.roster[4];
+  const star = t.roster.reduce((a,x)=> playerOvr(x) > playerOvr(a) ? x : a, t.roster[0]);
   b.innerHTML = `<div class="tc-bar" style="background:${t.hex}"></div>
     <div class="tc-facewrap"></div>
     <div class="tc-city">${t.city}</div>
     <div class="tc-name">${t.name}</div>
     <div class="tc-stats"><span>OVR <b>${ovrOf(t)}</b></span><span>★ ${star.n}</span></div>`;
-  const fc = faceCanvas(5 /*FW*/ + i*10, t.skin, t.hex, 52);
+  const fc = faceCanvas(t.roster.indexOf(star) + i*10, t.skin, t.hex, 52);
   fc.className = 'tc-face';
   b.querySelector('.tc-facewrap').appendChild(fc);
   return b;
@@ -1616,32 +1719,114 @@ function paintGrids() {
   });
 }
 homeGrid.addEventListener('click', e => {
-  const b = e.target.closest('.team-card');
-  if (!b || b.disabled) return;
-  homePick = +b.dataset.i; G.homePick = homePick; paintGrids();
+  const b = e.target.closest('.team-card'); if (!b || b.disabled) return;
+  homePick = +b.dataset.i; G.homePick = homePick; squadPick = [0,1,2,3,4]; paintGrids();
 });
 awayGrid.addEventListener('click', e => {
-  const b = e.target.closest('.team-card');
-  if (!b || b.disabled) return;
+  const b = e.target.closest('.team-card'); if (!b || b.disabled) return;
   awayPick = +b.dataset.i; G.awayPick = awayPick; paintGrids();
 });
 paintGrids();
 
 document.getElementById('lenGroup').addEventListener('click', e => {
-  const b = e.target.closest('button');
-  if (!b) return;
+  const b = e.target.closest('button'); if (!b) return;
   chosenMin = +b.dataset.min;
   for (const c of e.currentTarget.children) c.classList.toggle('on', c === b);
 });
-document.getElementById('ftBtn').addEventListener('click', returnToMenu);
+
+/* ---------- SQUAD / PLAYER CARDS ---------- */
+function playerCard(rp, idx, poolTeam) {
+  const ovr = playerOvr(rp);
+  const tier = tierOf(ovr);
+  const card = document.createElement('button');
+  card.type = 'button';
+  card.className = 'pcard ' + tier.key + (tier.spikes ? ' spiked' : '');
+  card.dataset.idx = idx;
+  card.style.setProperty('--c1', tier.c1);
+  card.style.setProperty('--c2', tier.c2);
+  card.style.setProperty('--ctext', tier.text);
+  card.style.setProperty('--spike', tier.key === 'phenom' ? '#FFD84D' : tier.c1);
+  card.innerHTML = `
+    <div class="pc-ovr">${ovr}</div>
+    <div class="pc-pos">${rp.r}</div>
+    <div class="pc-name">${rp.n}</div>
+    <div class="pc-tier">${tier.label}</div>
+    <div class="pc-stats"><span>PAC <b>${rp.pace}</b></span><span>SHO <b>${rp.shoot}</b></span><span>SKL <b>${rp.skill}</b></span></div>`;
+  const face = faceCanvas(idx + poolTeam*10, TEAMS[homePick].skin, tier.c1, 56);
+  face.className = 'pc-face';
+  card.insertBefore(face, card.querySelector('.pc-name'));
+  return card;
+}
+
+const squadGrid = document.getElementById('squadGrid');
+function renderSquad() {
+  const t = TEAMS[homePick];
+  squadGrid.innerHTML = '';
+  t.roster.forEach((rp, idx) => {
+    const card = playerCard(rp, idx, homePick);
+    if (squadPick.includes(idx)) card.classList.add('picked');
+    squadGrid.appendChild(card);
+  });
+  updateSquadDim();
+}
+function updateSquadDim() {
+  const full = squadPick.length >= 5;
+  [...squadGrid.children].forEach((c, idx) => {
+    const picked = squadPick.includes(idx);
+    c.classList.toggle('picked', picked);
+    c.classList.toggle('dim', full && !picked);
+  });
+}
+squadGrid.addEventListener('click', e => {
+  const c = e.target.closest('.pcard'); if (!c) return;
+  const idx = +c.dataset.idx;
+  const at = squadPick.indexOf(idx);
+  if (at >= 0) { squadPick.splice(at, 1); }
+  else if (squadPick.length < 5) { squadPick.push(idx); }
+  updateSquadDim();
+});
+
+/* ---------- STEP NAVIGATION ---------- */
+function showPane(n) {
+  document.getElementById('pane1').classList.toggle('on', n === 1);
+  document.getElementById('pane2').classList.toggle('on', n === 2);
+  document.getElementById('pill1').classList.toggle('on', n === 1);
+  document.getElementById('pill2').classList.toggle('on', n === 2);
+}
+document.getElementById('toSquadBtn').addEventListener('click', () => {
+  squadPick = [0,1,2,3,4];
+  renderSquad();
+  showPane(2);
+});
+document.getElementById('backBtn').addEventListener('click', () => showPane(1));
+
+/* ---------- FULL-TIME RETURN ---------- */
+document.getElementById('ftBtn').addEventListener('click', () => { returnToMenu(); showPane(1); });
+
+/* ---------- KICK OFF ---------- */
 document.getElementById('startBtn').addEventListener('click', () => {
-  applyTeam(-1, TEAMS[homePick]);
+  if (squadPick.length < 5) { alert('Pick 5 players first'); return; }
+  // reorder the chosen club roster so the picked five (in GK/DF/DF/MF/FW order) fill the formation
+  const chosen = squadPick.map(i => TEAMS[homePick].roster[i]);
+  // sort chosen into formation slots by their listed role where possible
+  const byRole = { GK:[], DF:[], MF:[], FW:[] };
+  chosen.forEach(rp => (byRole[rp.r] || byRole.MF).push(rp));
+  const need = ['GK','DF','DF','MF','FW'];
+  const leftover = [];
+  const filled = need.map(role => (byRole[role] && byRole[role].shift()) || null);
+  Object.values(byRole).forEach(arr => arr.forEach(rp => leftover.push(rp)));
+  for (let i = 0; i < filled.length; i++) if (!filled[i]) filled[i] = leftover.shift();
+  const homeTeamCustom = { ...TEAMS[homePick], roster: filled };
+
+  applyTeam(-1, homeTeamCustom);
   applyTeam(1, TEAMS[awayPick]);
+
   const typed = document.getElementById('playerName').value.trim().toUpperCase();
-  HOME[4].name = typed || TEAMS[homePick].roster[4];
+  HOME[4].name = typed || filled[4].n;
   nameShown = null;
   G.matchLen = chosenMin * 60;
   document.getElementById('overlay').classList.add('hidden');
+  showPane(1);
   audio().resume && audio().resume();
   G.clock = 0; G.score = [0, 0];
   document.getElementById('scoreHome').textContent = '0';
@@ -1650,67 +1835,6 @@ document.getElementById('startBtn').addEventListener('click', () => {
   banner('KICK OFF', 'VOLCANO PARK · AUCKLAND', 1400);
 });
 
-/* ---------- MOBILE / TABLET TOUCH CONTROLS ---------- */
-const isTouch = (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
-if (isTouch) {
-  document.body.classList.add('touch-on');
-
-  const joy = document.getElementById('joy');
-  const nub = document.getElementById('joyNub');
-  let joyId = null, cx = 0, cy = 0;
-  const R = 46;
-
-  function joyStart(e) {
-    const t = e.changedTouches[0];
-    joyId = t.identifier;
-    const r = joy.getBoundingClientRect();
-    cx = r.left + r.width / 2; cy = r.top + r.height / 2;
-    touch.active = true;
-    joyMove(e);
-  }
-  function joyMove(e) {
-    for (const t of e.changedTouches) {
-      if (t.identifier !== joyId) continue;
-      let dx = t.clientX - cx, dy = t.clientY - cy;
-      const len = Math.hypot(dx, dy) || 1;
-      const cl = Math.min(len, R);
-      const nx = dx / len * cl, ny = dy / len * cl;
-      nub.style.transform = `translate(${nx}px,${ny}px)`;
-      touch.mx = dx / R; touch.mz = dy / R;      // note: +z is "down"/toward camera
-      touch.mx = Math.max(-1, Math.min(1, touch.mx));
-      touch.mz = Math.max(-1, Math.min(1, touch.mz));
-    }
-  }
-  function joyEnd(e) {
-    for (const t of e.changedTouches) {
-      if (t.identifier !== joyId) continue;
-      joyId = null; touch.active = false; touch.mx = 0; touch.mz = 0;
-      nub.style.transform = 'translate(0,0)';
-    }
-  }
-  joy.addEventListener('touchstart', e => { e.preventDefault(); joyStart(e); }, { passive: false });
-  joy.addEventListener('touchmove',  e => { e.preventDefault(); joyMove(e); },  { passive: false });
-  joy.addEventListener('touchend',   e => { e.preventDefault(); joyEnd(e); },   { passive: false });
-  joy.addEventListener('touchcancel',e => { e.preventDefault(); joyEnd(e); },   { passive: false });
-
-  const hold = (id, on, off) => {
-    const el = document.getElementById(id);
-    el.addEventListener('touchstart', e => { e.preventDefault(); on(); }, { passive: false });
-    el.addEventListener('touchend',   e => { e.preventDefault(); off && off(); }, { passive: false });
-  };
-  // SHOOT: charge while held, fire on release
-  hold('btnShoot', () => { if (G.state === STATE.PLAY) touch.charging = true; },
-                   () => { if (G.state === STATE.PLAY && G.charge > .06) { tryShoot(G.active, G.charge); G.charge = 0; } touch.charging = false; });
-  hold('btnPass',   () => { if (G.state === STATE.PLAY) tryPass(G.active); if (G.state === STATE.REPLAY) endReplay(); });
-  hold('btnSprint', () => { touch.sprint = true; }, () => { touch.sprint = false; });
-  hold('btnSwitch', () => { if (G.state === STATE.PLAY) switchPlayer(); if (G.state === STATE.REPLAY) endReplay(); });
-  hold('btnTackle', () => { if (G.state === STATE.PLAY) tryTackle(G.active); });
-
-  // tapping the pitch during replay also skips
-  document.getElementById('app').addEventListener('touchstart', () => {
-    if (G.state === STATE.REPLAY) endReplay();
-  });
-}
 </script>
 </body>
 </html>

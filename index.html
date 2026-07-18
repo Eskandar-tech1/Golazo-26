@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Golazo 26 · v0.7</title>
+<title>Golazo 26 · v0.8</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -213,9 +213,14 @@ body.replay .replay-strip{opacity:1;transform:none}
 .btn:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(255,90,31,.32)}
 .btn:focus-visible{outline:2px solid var(--harbour);outline-offset:3px}
 @media (max-width:820px){
-  .card{grid-template-columns:1fr;gap:24px}
+  .card{grid-template-columns:1fr;gap:18px}
   .keys{display:none}
-  .team-grid{grid-template-columns:repeat(2,1fr)}
+  .team-grid{grid-template-columns:repeat(3,1fr)}
+  .title{font-size:clamp(38px,9vw,60px)}
+  .squad{grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:9px}
+  .pc-face{width:44px;height:44px}
+  .pc-ovr{font-size:22px}
+  .blurb{display:none}
 }
 @media (max-width:700px){
   .power{display:none}
@@ -1835,6 +1840,62 @@ document.getElementById('startBtn').addEventListener('click', () => {
   banner('KICK OFF', 'VOLCANO PARK · AUCKLAND', 1400);
 });
 
+
+/* ---------- MOBILE / TABLET TOUCH CONTROLS ---------- */
+const isTouch = (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
+if (isTouch) {
+  document.body.classList.add('touch-on');
+  const joy = document.getElementById('joy');
+  const nub = document.getElementById('joyNub');
+  let joyId = null, cx = 0, cy = 0;
+  const R = 46;
+  function joyStart(e) {
+    const t = e.changedTouches[0];
+    joyId = t.identifier;
+    const r = joy.getBoundingClientRect();
+    cx = r.left + r.width / 2; cy = r.top + r.height / 2;
+    touch.active = true; joyMove(e);
+  }
+  function joyMove(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joyId) continue;
+      let dx = t.clientX - cx, dy = t.clientY - cy;
+      const len = Math.hypot(dx, dy) || 1;
+      const cl = Math.min(len, R);
+      nub.style.transform = `translate(${dx / len * cl}px,${dy / len * cl}px)`;
+      touch.mx = Math.max(-1, Math.min(1, dx / R));
+      touch.mz = Math.max(-1, Math.min(1, dy / R));
+    }
+  }
+  function joyEnd(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joyId) continue;
+      joyId = null; touch.active = false; touch.mx = 0; touch.mz = 0;
+      nub.style.transform = 'translate(0,0)';
+    }
+  }
+  joy.addEventListener('touchstart', e => { e.preventDefault(); joyStart(e); }, { passive: false });
+  joy.addEventListener('touchmove',  e => { e.preventDefault(); joyMove(e); },  { passive: false });
+  joy.addEventListener('touchend',   e => { e.preventDefault(); joyEnd(e); },   { passive: false });
+  joy.addEventListener('touchcancel',e => { e.preventDefault(); joyEnd(e); },   { passive: false });
+
+  const hold = (id, on, off) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('touchstart', e => { e.preventDefault(); on(); }, { passive: false });
+    el.addEventListener('touchend',   e => { e.preventDefault(); off && off(); }, { passive: false });
+  };
+  hold('btnShoot', () => { if (G.state === STATE.PLAY) touch.charging = true; },
+                   () => { if (G.state === STATE.PLAY && G.charge > .06) { tryShoot(G.active, G.charge); G.charge = 0; } touch.charging = false; });
+  hold('btnPass',   () => { if (G.state === STATE.PLAY) tryPass(G.active); if (G.state === STATE.REPLAY) endReplay(); });
+  hold('btnSprint', () => { touch.sprint = true; }, () => { touch.sprint = false; });
+  hold('btnSwitch', () => { if (G.state === STATE.PLAY) switchPlayer(); if (G.state === STATE.REPLAY) endReplay(); });
+  hold('btnTackle', () => { if (G.state === STATE.PLAY) tryTackle(G.active); });
+
+  document.getElementById('app').addEventListener('touchstart', () => {
+    if (G.state === STATE.REPLAY) endReplay();
+  });
+}
 </script>
 </body>
 </html>

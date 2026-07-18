@@ -203,7 +203,7 @@ body.replay .replay-strip{opacity:1;transform:none}
         <div class="rs-seg" id="seg2"><i></i></div>
       </div>
     </div>
-    <div class="rs-right" id="rsScorer">—</div>
+    <div class="rs-right"><span id="rsScorer">—</span><br><span style="font-size:9px;letter-spacing:.2em;opacity:.7">SPACE TO SKIP</span></div>
   </div>
 </div>
 
@@ -439,9 +439,9 @@ scene.add(ballMesh);
 })();
 
 // ---------------------------------------------------------------- PLAYERS
-function buildPlayer(shirtColor, num) {
+function buildPlayer(shirtColor, num, skinColor) {
   const g = new THREE.Group();
-  const skin = new THREE.MeshStandardMaterial({ color: 0xC98C63, roughness: .8 });
+  const skin = new THREE.MeshStandardMaterial({ color: skinColor || 0xC98C63, roughness: .8 });
   const shirt = new THREE.MeshStandardMaterial({ color: shirtColor, roughness: .72 });
   const shorts = new THREE.MeshStandardMaterial({ color: 0x0E2A33, roughness: .8 });
 
@@ -475,7 +475,20 @@ function buildPlayer(shirtColor, num) {
   g.add(strip);
 
   scene.add(g);
-  return { group: g, legs, arms, torso, shirtMat: shirt };
+  return { group: g, legs, arms, torso, shirtMat: shirt, skinMat: skin };
+}
+function playerTag(text, hex) {
+  const c = document.createElement('canvas'); c.width = 200; c.height = 44;
+  const x = c.getContext('2d');
+  x.font = 'bold 26px Barlow Condensed, sans-serif';
+  x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.lineWidth = 5; x.lineJoin = 'round';
+  x.strokeStyle = 'rgba(8,25,31,.95)'; x.strokeText(text, 100, 24);
+  x.fillStyle = hex; x.fillText(text, 100, 24);
+  const t = new THREE.CanvasTexture(c);
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, transparent: true, depthTest: false }));
+  sp.scale.set(3.4, .75, 1); sp.renderOrder = 998;
+  return sp;
 }
 function numberMat(num) {
   const c = document.createElement('canvas'); c.width = c.height = 64;
@@ -534,29 +547,66 @@ const FORMATION = [
 ];
 
 const TEAMS = [
-  { city: 'AUCKLAND',     name: 'VULCANS',  color: 0xFF5A1F, hex: '#FF5A1F', att: 82, mid: 78, def: 74,
-    roster: ['TANE', 'REWA', 'COLLINS', "FA'AMAU", 'ESKANDAR'] },
-  { city: 'WELLINGTON',   name: 'KRAKEN',   color: 0x2BD9C4, hex: '#2BD9C4', att: 79, mid: 84, def: 77,
-    roster: ['VOSS', 'HARDING', 'OKAFOR', 'PETRIE', 'MARTELL'] },
-  { city: 'CHRISTCHURCH', name: 'GRIFFINS', color: 0xE8C547, hex: '#E8C547', att: 74, mid: 80, def: 88,
-    roster: ['LOCKE', 'ABERNATHY', 'SOLE', 'KIRIONA', 'DRAKE'] },
-  { city: 'DUNEDIN',      name: 'FROST',    color: 0x8FB8DE, hex: '#8FB8DE', att: 71, mid: 76, def: 90,
-    roster: ['NILSEN', 'TAUFA', 'BRENNAN', 'MOSS', 'ANDERS'] },
-  { city: 'PACIFIC',      name: 'TIDE',     color: 0x7B5EA7, hex: '#7B5EA7', att: 90, mid: 73, def: 70,
-    roster: ['MALO', 'SEFA', 'TUPOU', 'RANGI', 'AVIA'] },
-  { city: 'ROTORUA',      name: 'EMBERS',   color: 0xD64550, hex: '#D64550', att: 85, mid: 82, def: 72,
-    roster: ['WHATU', 'PIRIPI', 'HALLOWAY', 'NGATA', 'CRUZ'] },
+  { city: 'AUCKLAND',   name: 'VULCANS',  color: 0xFF5A1F, hex: '#FF5A1F', ovr: 82, skin: 0xC98C63,
+    roster: [
+      { n:'AROHA',    r:'GK', pace:74, shoot:40, skill:70 },
+      { n:'REWA',     r:'DF', pace:78, shoot:55, skill:72 },
+      { n:'COLLINS',  r:'DF', pace:80, shoot:58, skill:74 },
+      { n:'TANE',     r:'MF', pace:84, shoot:79, skill:88 },
+      { n:'ESKANDAR', r:'FW', pace:90, shoot:91, skill:92 } ] },
+  { city: 'WELLINGTON', name: 'KRAKEN',   color: 0x2BD9C4, hex: '#2BD9C4', ovr: 80, skin: 0x8D5A3C,
+    roster: [
+      { n:'VOSS',     r:'GK', pace:72, shoot:38, skill:74 },
+      { n:'HARDING',  r:'DF', pace:79, shoot:60, skill:76 },
+      { n:'OKAFOR',   r:'DF', pace:83, shoot:62, skill:78 },
+      { n:'PETRIE',   r:'MF', pace:82, shoot:82, skill:90 },
+      { n:'MARTELL',  r:'FW', pace:88, shoot:87, skill:86 } ] },
+  { city: 'CHRISTCHURCH', name: 'GRIFFINS', color: 0xE8C547, hex: '#E8C547', ovr: 81, skin: 0xB07A50,
+    roster: [
+      { n:'LOCKE',    r:'GK', pace:70, shoot:35, skill:80 },
+      { n:'ABERNATHY',r:'DF', pace:76, shoot:58, skill:82 },
+      { n:'SOLE',     r:'DF', pace:78, shoot:60, skill:84 },
+      { n:'KIRIONA',  r:'MF', pace:80, shoot:80, skill:86 },
+      { n:'DRAKE',    r:'FW', pace:84, shoot:85, skill:83 } ] },
+  { city: 'DUNEDIN',    name: 'FROST',    color: 0x8FB8DE, hex: '#8FB8DE', ovr: 79, skin: 0xE0B58A,
+    roster: [
+      { n:'NILSEN',   r:'GK', pace:71, shoot:36, skill:88 },
+      { n:'TAUFA',    r:'DF', pace:77, shoot:55, skill:86 },
+      { n:'BRENNAN',  r:'DF', pace:79, shoot:57, skill:88 },
+      { n:'MOSS',     r:'MF', pace:78, shoot:76, skill:80 },
+      { n:'ANDERS',   r:'FW', pace:82, shoot:81, skill:79 } ] },
+  { city: 'PACIFIC',    name: 'TIDE',     color: 0x7B5EA7, hex: '#7B5EA7', ovr: 83, skin: 0x9A6B45,
+    roster: [
+      { n:'MALO',     r:'GK', pace:73, shoot:42, skill:68 },
+      { n:'SEFA',     r:'DF', pace:82, shoot:58, skill:74 },
+      { n:'TUPOU',    r:'DF', pace:84, shoot:60, skill:72 },
+      { n:'RANGI',    r:'MF', pace:88, shoot:84, skill:85 },
+      { n:'AVIA',     r:'FW', pace:93, shoot:94, skill:90 } ] },
+  { city: 'ROTORUA',    name: 'EMBERS',   color: 0xD64550, hex: '#D64550', ovr: 84, skin: 0x6E4A32,
+    roster: [
+      { n:'WHATU',    r:'GK', pace:74, shoot:40, skill:76 },
+      { n:'PIRIPI',   r:'DF', pace:80, shoot:60, skill:80 },
+      { n:'HALLOWAY', r:'DF', pace:81, shoot:63, skill:82 },
+      { n:'NGATA',    r:'MF', pace:86, shoot:85, skill:89 },
+      { n:'CRUZ',     r:'FW', pace:89, shoot:90, skill:88 } ] },
 ];
+function ovrOf(t){ return Math.round(t.roster.reduce((a,p)=>a+(p.pace+p.shoot+p.skill)/3,0)/t.roster.length); }
+function ratMul(v, lo, hi){ return lo + (v - 70) / 25 * (hi - lo); }
 
 const players = [];
 function makeTeam(side, t) {   // side: -1 home (defends -x), +1 away
   FORMATION.forEach((f, i) => {
+    const rp = t.roster[i];
     const num = f.role === 'GK' ? 1 : i + 3;
-    const v = buildPlayer(t.color, num);
+    const v = buildPlayer(t.color, num, t.skin);
     players.push({
       ...v,
-      team: side, role: f.role, num, tag: t.name, name: t.roster[i],
-      speedMul: 1, shotMul: 1, gkReach: 2.4,
+      team: side, role: f.role, num, tag: t.name, name: rp.n,
+      pace: rp.pace, shoot: rp.shoot, skill: rp.skill,
+      speedMul: ratMul(rp.pace, 0.90, 1.12),
+      shotMul: ratMul(rp.shoot, 0.82, 1.24),
+      gkReach: 2.0 + ratMul(rp.skill, 0.0, 1.0),
+      kickAnim: 0, tagText: rp.n,
       pos: new THREE.Vector3(f.x * HALF_L * (side === -1 ? 1 : -1), 0, f.z * HALF_W),
       vel: new THREE.Vector3(),
       rot: side === -1 ? Math.PI / 2 : -Math.PI / 2,
@@ -567,6 +617,19 @@ function makeTeam(side, t) {   // side: -1 home (defends -x), +1 away
 }
 makeTeam(-1, TEAMS[0]);
 makeTeam(1, TEAMS[1]);
+for (const p of players) {
+  p.tagSprite = playerTag(p.name, p.team === -1 ? TEAMS[0].hex : TEAMS[1].hex);
+  scene.add(p.tagSprite);
+}
+function refreshTags() {
+  for (const p of players) {
+    p.tagSprite.material.map.dispose();
+    const hex = p.team === -1 ? G.homeHex : G.awayHex;
+    const nt = playerTag(p.name, hex);
+    p.tagSprite.material.map = nt.material.map;
+    p.tagSprite.material.needsUpdate = true;
+  }
+}
 
 const HOME = players.filter(p => p.team === -1);
 const AWAY = players.filter(p => p.team === 1);
@@ -579,18 +642,21 @@ const targetGoalX = p => (p.team === -1 ? HALF_L : -HALF_L);
 function applyTeam(side, t) {
   const list = side === -1 ? HOME : AWAY;
   list.forEach((p, i) => {
+    const rp = t.roster[i];
     p.shirtMat.color.setHex(t.color);
-    p.name = t.roster[i];
-    p.tag = t.name;
-    p.speedMul = 0.94 + (t.mid - 70) / 20 * 0.12;
-    p.shotMul = 0.90 + (t.att - 70) / 20 * 0.20;
-    p.gkReach = 2.00 + (t.def - 70) / 20 * 0.90;
+    p.skinMat.color.setHex(t.skin);
+    p.name = rp.n; p.tag = t.name;
+    p.pace = rp.pace; p.shoot = rp.shoot; p.skill = rp.skill;
+    p.speedMul = ratMul(rp.pace, 0.90, 1.12);
+    p.shotMul = ratMul(rp.shoot, 0.82, 1.24);
+    p.gkReach = 2.0 + ratMul(rp.skill, 0.0, 1.0);
   });
   const pre = side === -1 ? 'Home' : 'Away';
   document.getElementById('chip' + pre).style.background = t.hex;
   document.getElementById('name' + pre).textContent = t.name;
   if (side === -1) G.homeHex = t.hex; else G.awayHex = t.hex;
   nameShown = null;
+  if (players[0].tagSprite) refreshTags();
 }
 
 const STATE = { MENU: 0, KICKOFF: 1, PLAY: 2, REPLAY: 3, FULLTIME: 4 };
@@ -617,6 +683,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyQ' && G.state === STATE.PLAY) switchPlayer();
   if (e.code === 'KeyR' && G.state === STATE.PLAY) startReplay('MANUAL');
   if (e.code === 'KeyE' && G.state === STATE.PLAY) tryPass(G.active);
+  if (G.state === STATE.REPLAY && ['Space','Enter','Escape','KeyR'].includes(e.code)) endReplay();
 });
 addEventListener('keyup', e => {
   keys[e.code] = false;
@@ -714,6 +781,7 @@ function tryShoot(p, charge) {
   const dir = inRange ? face.lerp(aim, .42).normalize() : face;
   ball.vel.set(dir.x * power, lerp(3.5, 9, clamp(charge, 0, 1)), dir.z * power);
   releaseBall(p, .34);
+  p.kickAnim = .32;
   thud(.8 + charge * .5);
 }
 function tryPass(p) {
@@ -735,6 +803,7 @@ function tryPass(p) {
   const sp = clamp(d * 1.5, 13, 30);
   ball.vel.set(to.x * sp, 1.6, to.z * sp);
   releaseBall(p, .22);
+  p.kickAnim = .22;
   if (p.team === -1) { G.active = best; switchCd = .8; }
   thud(.5);
 }
@@ -810,12 +879,15 @@ function aiKeeper(p, dt) {
   if (threat && Math.abs(ball.pos.x - gx) < 12 && !ball.owner) tx = gx + (p.team === -1 ? 3.4 : -3.4);
   steer(p, new THREE.Vector3(tx, 0, tz), threat, dt);
 
-  // save: swat anything close and fast
+  // save: clear anything within reach — keeper never holds the ball
   const d = dist2D(p.pos, ball.pos);
-  if (d < p.gkReach && ball.pos.y < 3 && ball.cooldown <= 0 && ball.owner !== p) {
-    const out = new THREE.Vector3(attackDir(p) * 1, 0, Math.sign(ball.pos.z || 1) * .8).normalize();
-    ball.vel.set(out.x * 16, 4.5, out.z * 16);
-    ball.owner = null; ball.lastTouch = p; ball.cooldown = .4;
+  if (d < p.gkReach && ball.pos.y < 3.2 && ball.cooldown <= 0) {
+    if (ball.owner === p) ball.owner = null;
+    const outZ = ball.pos.z >= 0 ? 1 : -1;
+    const out = new THREE.Vector3(attackDir(p), 0, outZ * .7);
+    const l = Math.hypot(out.x, out.z); out.x /= l; out.z /= l;
+    ball.vel.set(out.x * 17, 4.8, out.z * 17);
+    ball.lastTouch = p; ball.cooldown = .5;
     p.lunge = .3;
     thud(.6);
     banner('SAVE', '', 700);
@@ -825,7 +897,12 @@ function aiKeeper(p, dt) {
 function steer(p, target, sprint, dt) {
   const to = tmp.set(target.x - p.pos.x, 0, target.z - p.pos.z);
   const d = to.length();
-  if (d < .25) { p.vel.multiplyScalar(1 - Math.min(1, 8 * dt)); return; }
+  if (d < .4) {
+    // arrive smoothly instead of snapping to a dead stop
+    p.vel.x += (-p.vel.x) * Math.min(1, 6 * dt);
+    p.vel.z += (-p.vel.z) * Math.min(1, 6 * dt);
+    return;
+  }
   to.normalize();
   const spd = (sprint && p.stamina > .12 ? CFG.SPRINT : CFG.RUN) * (p.role === 'GK' ? .82 : 1) * p.speedMul;
   p.vel.x += (to.x * spd - p.vel.x) * Math.min(1, CFG.ACCEL * dt / spd);
@@ -856,6 +933,7 @@ function humanControl(p, dt) {
 function updatePlayers(dt) {
   for (const p of players) {
     p.kickCd = Math.max(0, p.kickCd - dt);
+    p.kickAnim = Math.max(0, (p.kickAnim || 0) - dt);
     p.lunge = Math.max(0, p.lunge - dt);
     p.stamina = Math.min(1, p.stamina + dt * .07);
 
@@ -889,10 +967,20 @@ function applyPlayerPose(p, sp) {
   p.group.position.set(p.pos.x, 0, p.pos.z);
   p.group.rotation.y = p.rot;
   const swing = Math.sin(p.phase) * clamp(sp / CFG.SPRINT, 0, 1) * .85;
-  p.legs[0].rotation.x = swing;
-  p.legs[1].rotation.x = -swing;
-  p.arms[0].rotation.x = -swing * .6;
-  p.arms[1].rotation.x = swing * .6;
+  if (p.kickAnim > 0) {
+    // planted left leg, right leg swings through the ball
+    const k = p.kickAnim / .32;                 // 1 -> 0
+    const kick = Math.sin((1 - k) * Math.PI);   // 0 -> 1 -> 0 arc
+    p.legs[0].rotation.x = -1.15 * kick;        // driving leg forward
+    p.legs[1].rotation.x = 0.35 * kick;
+    p.arms[0].rotation.x = 0.7 * kick;
+    p.arms[1].rotation.x = -0.9 * kick;         // opposite arm counterswings
+  } else {
+    p.legs[0].rotation.x = swing;
+    p.legs[1].rotation.x = -swing;
+    p.arms[0].rotation.x = -swing * .6;
+    p.arms[1].rotation.x = swing * .6;
+  }
   const lean = clamp(sp / CFG.SPRINT, 0, 1) * .16 + (p.lunge > 0 ? .9 : 0);
   p.torso.rotation.x = lean;
   p.group.position.y = Math.abs(Math.sin(p.phase)) * .05 * clamp(sp / 8, 0, 1);
@@ -935,7 +1023,7 @@ function updateBall(dt) {
     if (ball.cooldown <= 0 && ball.pos.y < 1.5) {
       let best = null, bd = CFG.CONTROL_R;
       for (const p of players) {
-        if (p.kickCd > 0) continue;
+        if (p.kickCd > 0 || p.role === 'GK') continue;   // keepers grab via aiKeeper only
         const d = dist2D(p.pos, ball.pos);
         if (d < bd) { bd = d; best = p; }
       }
@@ -1099,9 +1187,16 @@ function applyReplayFrame(t) {
     while (da < -Math.PI) da += Math.PI * 2;
     p.group.rotation.y = fa[3] + da * k;
     const ph = lerp(fa[4], fb[4], k);
-    const swing = Math.sin(ph) * .7;
-    p.legs[0].rotation.x = swing; p.legs[1].rotation.x = -swing;
-    p.arms[0].rotation.x = -swing * .6; p.arms[1].rotation.x = swing * .6;
+    const ka = lerp(fa[6] || 0, fb[6] || 0, k);
+    if (ka > 0.02) {
+      const kk = Math.sin((1 - ka / .32) * Math.PI);
+      p.legs[0].rotation.x = -1.15 * kk; p.legs[1].rotation.x = 0.35 * kk;
+      p.arms[0].rotation.x = 0.7 * kk;   p.arms[1].rotation.x = -0.9 * kk;
+    } else {
+      const swing = Math.sin(ph) * .7;
+      p.legs[0].rotation.x = swing; p.legs[1].rotation.x = -swing;
+      p.arms[0].rotation.x = -swing * .6; p.arms[1].rotation.x = swing * .6;
+    }
     p.torso.rotation.x = lerp(fa[5], fb[5], k);
   });
   ring.visible = false;
@@ -1231,7 +1326,10 @@ function frame(now) {
     record(simTime);
     ring.visible = G.state === STATE.PLAY;
     ring.position.set(G.active.pos.x, .04, G.active.pos.z);
-    updateNameTag();
+    for (const p of players) {
+      p.tagSprite.position.set(p.pos.x, 2.85, p.pos.z);
+      p.tagSprite.visible = (G.state === STATE.PLAY || G.state === STATE.KICKOFF);
+    }
     updateLiveCamera(dt);
   }
   drawHUD();
@@ -1248,10 +1346,11 @@ function teamCard(t, i) {
   b.type = 'button';
   b.className = 'team-card';
   b.dataset.i = i;
+  const star = t.roster[4];
   b.innerHTML = `<div class="tc-bar" style="background:${t.hex}"></div>
     <div class="tc-city">${t.city}</div>
     <div class="tc-name">${t.name}</div>
-    <div class="tc-stats"><span>ATT <b>${t.att}</b></span><span>MID <b>${t.mid}</b></span><span>DEF <b>${t.def}</b></span></div>`;
+    <div class="tc-stats"><span>OVR <b>${ovrOf(t)}</b></span><span>★ ${star.n}</span></div>`;
   return b;
 }
 const homeGrid = document.getElementById('homeGrid');

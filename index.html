@@ -533,15 +533,30 @@ const FORMATION = [
   { role: 'FW', x: 0.22, z: 0 },
 ];
 
+const TEAMS = [
+  { city: 'AUCKLAND',     name: 'VULCANS',  color: 0xFF5A1F, hex: '#FF5A1F', att: 82, mid: 78, def: 74,
+    roster: ['TANE', 'REWA', 'COLLINS', "FA'AMAU", 'ESKANDAR'] },
+  { city: 'WELLINGTON',   name: 'KRAKEN',   color: 0x2BD9C4, hex: '#2BD9C4', att: 79, mid: 84, def: 77,
+    roster: ['VOSS', 'HARDING', 'OKAFOR', 'PETRIE', 'MARTELL'] },
+  { city: 'CHRISTCHURCH', name: 'GRIFFINS', color: 0xE8C547, hex: '#E8C547', att: 74, mid: 80, def: 88,
+    roster: ['LOCKE', 'ABERNATHY', 'SOLE', 'KIRIONA', 'DRAKE'] },
+  { city: 'DUNEDIN',      name: 'FROST',    color: 0x8FB8DE, hex: '#8FB8DE', att: 71, mid: 76, def: 90,
+    roster: ['NILSEN', 'TAUFA', 'BRENNAN', 'MOSS', 'ANDERS'] },
+  { city: 'PACIFIC',      name: 'TIDE',     color: 0x7B5EA7, hex: '#7B5EA7', att: 90, mid: 73, def: 70,
+    roster: ['MALO', 'SEFA', 'TUPOU', 'RANGI', 'AVIA'] },
+  { city: 'ROTORUA',      name: 'EMBERS',   color: 0xD64550, hex: '#D64550', att: 85, mid: 82, def: 72,
+    roster: ['WHATU', 'PIRIPI', 'HALLOWAY', 'NGATA', 'CRUZ'] },
+];
+
 const players = [];
-function makeTeam(side, color, nameTag) {   // side: -1 home (defends -x), +1 away
+function makeTeam(side, t) {   // side: -1 home (defends -x), +1 away
   FORMATION.forEach((f, i) => {
     const num = f.role === 'GK' ? 1 : i + 3;
-    const v = buildPlayer(color, num);
+    const v = buildPlayer(t.color, num);
     players.push({
       ...v,
-      team: side, role: f.role, num, tag: nameTag,
-      base: new THREE.Vector3(f.x * HALF_L * side * -1 * -1, 0, f.z * HALF_W),
+      team: side, role: f.role, num, tag: t.name, name: t.roster[i],
+      speedMul: 1, shotMul: 1, gkReach: 2.4,
       pos: new THREE.Vector3(f.x * HALF_L * (side === -1 ? 1 : -1), 0, f.z * HALF_W),
       vel: new THREE.Vector3(),
       rot: side === -1 ? Math.PI / 2 : -Math.PI / 2,

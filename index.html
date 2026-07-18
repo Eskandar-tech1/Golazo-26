@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Golazo 26</title>
+<title>Golazo 26 · v0.4</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -163,6 +163,30 @@ body.replay .replay-strip{opacity:1;transform:none}
   .radar{left:12px;bottom:12px}
   .replay-strip{padding:0 16px}
 }
+.touch{position:fixed;inset:0;z-index:5;pointer-events:none;display:none}
+body.touch-on .touch{display:block}
+.joy{
+  position:absolute;left:22px;bottom:22px;width:132px;height:132px;
+  border-radius:50%;background:rgba(8,25,31,.5);border:1.5px solid var(--line);
+  backdrop-filter:blur(6px);pointer-events:auto;touch-action:none
+}
+.joy-nub{
+  position:absolute;left:50%;top:50%;width:56px;height:56px;margin:-28px 0 0 -28px;
+  border-radius:50%;background:rgba(242,237,227,.85);box-shadow:0 4px 14px rgba(0,0,0,.4);
+  transition:transform .04s linear
+}
+.btns{position:absolute;right:20px;bottom:20px;display:grid;grid-template-columns:74px 74px;gap:12px;pointer-events:none}
+.tbtn{
+  width:74px;height:74px;border-radius:50%;pointer-events:auto;touch-action:none;
+  font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.04em;
+  color:#0A1114;border:0;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 18px rgba(0,0,0,.4);user-select:none;-webkit-user-select:none
+}
+.tbtn:active{transform:scale(.92)}
+.tbtn.shoot{background:var(--volcanic);grid-column:2;grid-row:1}
+.tbtn.pass{background:var(--harbour);grid-column:1;grid-row:1}
+.tbtn.sprint{background:#E8C547;grid-column:1;grid-row:2}
+.tbtn.switch{background:rgba(242,237,227,.85);grid-column:2;grid-row:2}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -189,6 +213,16 @@ body.replay .replay-strip{opacity:1;transform:none}
   </div>
 
   <div class="banner" id="banner"></div>
+
+  <div class="touch" id="touch">
+    <div class="joy" id="joy"><div class="joy-nub" id="joyNub"></div></div>
+    <div class="btns">
+      <button class="tbtn shoot"  id="btnShoot">SHOOT</button>
+      <button class="tbtn pass"   id="btnPass">PASS</button>
+      <button class="tbtn sprint" id="btnSprint">RUN</button>
+      <button class="tbtn switch" id="btnSwitch">SW</button>
+    </div>
+  </div>
 
   <div class="replay-strip">
     <div>
@@ -676,6 +710,8 @@ const G = {
 
 // ---------------------------------------------------------------- INPUT
 const keys = {};
+const touch = { active: false, mx: 0, mz: 0, sprint: false, charging: false };
+
 addEventListener('keydown', e => {
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   if (keys[e.code]) return;
@@ -912,21 +948,23 @@ function steer(p, target, sprint, dt) {
 
 // ---------------------------------------------------------------- HUMAN CONTROL
 function humanControl(p, dt) {
-  const ax = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
-  const az = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
-  const sprint = !!(keys.ShiftLeft || keys.ShiftRight) && p.stamina > .05;
+  let ax = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+  let az = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
+  if (touch.active) { ax = touch.mx; az = touch.mz; }
+  const sprint = ((!!(keys.ShiftLeft || keys.ShiftRight)) || touch.sprint) && p.stamina > .05;
   const spd = (sprint ? CFG.SPRINT : CFG.RUN) * p.speedMul;
-  if (ax || az) {
-    const l = Math.hypot(ax, az);
-    const tx = (ax / l) * spd, tz = (az / l) * spd;
+  const mag = Math.hypot(ax, az);
+  if (mag > .08) {
+    const tx = (ax / mag) * spd, tz = (az / mag) * spd;
     p.vel.x += (tx - p.vel.x) * Math.min(1, CFG.ACCEL * dt / spd);
     p.vel.z += (tz - p.vel.z) * Math.min(1, CFG.ACCEL * dt / spd);
     if (sprint) p.stamina = Math.max(0, p.stamina - dt * .2);
   } else {
     p.vel.multiplyScalar(1 - Math.min(1, 9 * dt));
   }
-  if (keys.Space && ball.owner === p) G.charge = Math.min(1, G.charge + dt * 1.45);
-  else if (!keys.Space) G.charge = Math.max(0, G.charge - dt * 3);
+  const charging = keys.Space || touch.charging;
+  if (charging && ball.owner === p) G.charge = Math.min(1, G.charge + dt * 1.45);
+  else if (!charging) G.charge = Math.max(0, G.charge - dt * 3);
 }
 
 // ---------------------------------------------------------------- PHYSICS
@@ -1400,6 +1438,67 @@ document.getElementById('startBtn').addEventListener('click', () => {
   resetKickoff(-1);
   banner('KICK OFF', 'VOLCANO PARK · AUCKLAND', 1400);
 });
+
+/* ---------- MOBILE / TABLET TOUCH CONTROLS ---------- */
+const isTouch = (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
+if (isTouch) {
+  document.body.classList.add('touch-on');
+
+  const joy = document.getElementById('joy');
+  const nub = document.getElementById('joyNub');
+  let joyId = null, cx = 0, cy = 0;
+  const R = 46;
+
+  function joyStart(e) {
+    const t = e.changedTouches[0];
+    joyId = t.identifier;
+    const r = joy.getBoundingClientRect();
+    cx = r.left + r.width / 2; cy = r.top + r.height / 2;
+    touch.active = true;
+    joyMove(e);
+  }
+  function joyMove(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joyId) continue;
+      let dx = t.clientX - cx, dy = t.clientY - cy;
+      const len = Math.hypot(dx, dy) || 1;
+      const cl = Math.min(len, R);
+      const nx = dx / len * cl, ny = dy / len * cl;
+      nub.style.transform = `translate(${nx}px,${ny}px)`;
+      touch.mx = dx / R; touch.mz = dy / R;      // note: +z is "down"/toward camera
+      touch.mx = Math.max(-1, Math.min(1, touch.mx));
+      touch.mz = Math.max(-1, Math.min(1, touch.mz));
+    }
+  }
+  function joyEnd(e) {
+    for (const t of e.changedTouches) {
+      if (t.identifier !== joyId) continue;
+      joyId = null; touch.active = false; touch.mx = 0; touch.mz = 0;
+      nub.style.transform = 'translate(0,0)';
+    }
+  }
+  joy.addEventListener('touchstart', e => { e.preventDefault(); joyStart(e); }, { passive: false });
+  joy.addEventListener('touchmove',  e => { e.preventDefault(); joyMove(e); },  { passive: false });
+  joy.addEventListener('touchend',   e => { e.preventDefault(); joyEnd(e); },   { passive: false });
+  joy.addEventListener('touchcancel',e => { e.preventDefault(); joyEnd(e); },   { passive: false });
+
+  const hold = (id, on, off) => {
+    const el = document.getElementById(id);
+    el.addEventListener('touchstart', e => { e.preventDefault(); on(); }, { passive: false });
+    el.addEventListener('touchend',   e => { e.preventDefault(); off && off(); }, { passive: false });
+  };
+  // SHOOT: charge while held, fire on release
+  hold('btnShoot', () => { if (G.state === STATE.PLAY) touch.charging = true; },
+                   () => { if (G.state === STATE.PLAY && G.charge > .06) { tryShoot(G.active, G.charge); G.charge = 0; } touch.charging = false; });
+  hold('btnPass',   () => { if (G.state === STATE.PLAY) tryPass(G.active); if (G.state === STATE.REPLAY) endReplay(); });
+  hold('btnSprint', () => { touch.sprint = true; }, () => { touch.sprint = false; });
+  hold('btnSwitch', () => { if (G.state === STATE.PLAY) switchPlayer(); if (G.state === STATE.REPLAY) endReplay(); });
+
+  // tapping the pitch during replay also skips
+  document.getElementById('app').addEventListener('touchstart', () => {
+    if (G.state === STATE.REPLAY) endReplay();
+  });
+}
 </script>
 </body>
 </html>

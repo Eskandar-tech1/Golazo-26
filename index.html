@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Golazo 26 · v0.5</title>
+<title>Golazo 26 · v0.6</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -125,6 +125,8 @@ body.replay .replay-strip{opacity:1;transform:none}
 .tc-bar{height:3px;border-radius:2px;margin-bottom:7px}
 .tc-city{font-size:7.5px;letter-spacing:.18em;color:var(--bone-dim);text-transform:uppercase}
 .tc-name{font-family:var(--display);font-weight:700;font-size:18px;letter-spacing:.04em;line-height:1.1}
+.tc-facewrap{position:absolute;top:8px;right:8px}
+.tc-face{width:40px;height:40px;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.35)}
 .tc-stats{display:flex;gap:8px;margin-top:5px;font-size:8.5px;color:var(--bone-dim);font-variant-numeric:tabular-nums}
 .tc-stats b{color:var(--bone);font-weight:700}
 
@@ -183,10 +185,11 @@ body.touch-on .touch{display:block}
   box-shadow:0 6px 18px rgba(0,0,0,.4);user-select:none;-webkit-user-select:none
 }
 .tbtn:active{transform:scale(.92)}
-.tbtn.shoot{background:var(--volcanic);grid-column:2;grid-row:1}
-.tbtn.pass{background:var(--harbour);grid-column:1;grid-row:1}
-.tbtn.sprint{background:#E8C547;grid-column:1;grid-row:2}
-.tbtn.switch{background:rgba(242,237,227,.85);grid-column:2;grid-row:2}
+.tbtn.tackle{background:#D64550;color:#F2EDE3;grid-column:1 / span 2;grid-row:1;width:auto;height:48px;border-radius:24px;font-size:14px}
+.tbtn.shoot{background:var(--volcanic);grid-column:2;grid-row:2}
+.tbtn.pass{background:var(--harbour);grid-column:1;grid-row:2}
+.tbtn.sprint{background:#E8C547;grid-column:1;grid-row:3}
+.tbtn.switch{background:rgba(242,237,227,.85);grid-column:2;grid-row:3}
 .ftbtn{
   position:absolute;left:50%;bottom:16%;transform:translateX(-50%);
   font-family:var(--display);font-weight:700;font-size:20px;letter-spacing:.14em;
@@ -226,6 +229,7 @@ body.touch-on .touch{display:block}
   <div class="touch" id="touch">
     <div class="joy" id="joy"><div class="joy-nub" id="joyNub"></div></div>
     <div class="btns">
+      <button class="tbtn tackle" id="btnTackle">TACKLE</button>
       <button class="tbtn shoot"  id="btnShoot">SHOOT</button>
       <button class="tbtn pass"   id="btnPass">PASS</button>
       <button class="tbtn sprint" id="btnSprint">RUN</button>
@@ -262,6 +266,7 @@ body.touch-on .touch{display:block}
         <b>E</b><span>Pass</span>
         <b>Shift</b><span>Sprint</span>
         <b>Q</b><span>Switch player</span>
+        <b>F</b><span>Tackle / steal ball</span>
         <b>R</b><span>Instant replay</span>
       </div>
     </div>
@@ -571,6 +576,55 @@ function playerTag(text, hex) {
   sp.scale.set(3.4, .75, 1); sp.renderOrder = 998;
   return sp;
 }
+// Deterministic cartoon face portrait. seed -> stable features.
+function faceCanvas(seed, skinHex, kitHex, size) {
+  size = size || 96;
+  const c = document.createElement('canvas'); c.width = size; c.height = size;
+  const x = c.getContext('2d');
+  const rnd = (n) => { const v = Math.sin(seed * 999 + n * 57.13) * 43758.5453; return v - Math.floor(v); };
+  // background disc in kit colour
+  x.fillStyle = kitHex; x.beginPath(); x.arc(size/2, size/2, size/2, 0, 7); x.fill();
+  x.fillStyle = 'rgba(0,0,0,.12)'; x.beginPath(); x.arc(size/2, size*0.62, size/2, 0, 7); x.fill();
+  // head
+  const cx = size/2, cy = size*0.52, hr = size*0.30;
+  x.fillStyle = '#' + skinHex.toString(16).padStart(6,'0');
+  x.beginPath(); x.ellipse(cx, cy, hr*0.92, hr, 0, 0, 7); x.fill();
+  // hair styles
+  const hairCols = ['#241811','#14100E','#5A3A22','#0E0E0E','#3A2A1A','#6B4A2A'];
+  const hc = hairCols[Math.floor(rnd(1)*hairCols.length)];
+  x.fillStyle = hc;
+  const style = Math.floor(rnd(2)*4);
+  if (style === 0) { // short cap
+    x.beginPath(); x.arc(cx, cy-hr*0.15, hr*0.98, Math.PI, 0); x.fill();
+  } else if (style === 1) { // afro
+    x.beginPath(); x.arc(cx, cy-hr*0.35, hr*1.05, 0, 7); x.fill();
+    x.fillStyle = '#' + skinHex.toString(16).padStart(6,'0');
+    x.beginPath(); x.ellipse(cx, cy+hr*0.15, hr*0.9, hr*0.92, 0, 0, 7); x.fill();
+  } else if (style === 2) { // headband
+    x.beginPath(); x.arc(cx, cy-hr*0.2, hr*0.98, Math.PI, 0); x.fill();
+    x.fillStyle = kitHex; x.fillRect(cx-hr, cy-hr*0.5, hr*2, hr*0.28);
+  } else { // buzz
+    x.globalAlpha=.5; x.beginPath(); x.arc(cx, cy-hr*0.2, hr*0.95, Math.PI, 0); x.fill(); x.globalAlpha=1;
+  }
+  // eyes
+  x.fillStyle = '#F4F1EA';
+  const ey = cy - hr*0.05, ex2 = hr*0.34;
+  for (const sx of [-1,1]) { x.beginPath(); x.ellipse(cx+sx*ex2, ey, hr*0.16, hr*0.2, 0, 0, 7); x.fill(); }
+  x.fillStyle = '#16191C';
+  for (const sx of [-1,1]) { x.beginPath(); x.arc(cx+sx*ex2, ey+hr*0.02, hr*0.08, 0, 7); x.fill(); }
+  // brows
+  x.strokeStyle = hc; x.lineWidth = size*0.03; x.lineCap='round';
+  for (const sx of [-1,1]) { x.beginPath(); x.moveTo(cx+sx*ex2-hr*0.16, ey-hr*0.28); x.lineTo(cx+sx*ex2+hr*0.16, ey-hr*0.24); x.stroke(); }
+  // nose + smile
+  x.strokeStyle = 'rgba(0,0,0,.35)'; x.lineWidth = size*0.02;
+  x.beginPath(); x.moveTo(cx, ey+hr*0.1); x.lineTo(cx, ey+hr*0.32); x.stroke();
+  x.beginPath(); x.arc(cx, ey+hr*0.42, hr*0.34, 0.15*Math.PI, 0.85*Math.PI); x.stroke();
+  return c;
+}
+function faceTexture(seed, skinHex, kitHex) {
+  return new THREE.CanvasTexture(faceCanvas(seed, skinHex, kitHex, 96));
+}
+
 function numberMat(num) {
   const c = document.createElement('canvas'); c.width = c.height = 64;
   const x = c.getContext('2d');
@@ -687,7 +741,7 @@ function makeTeam(side, t) {   // side: -1 home (defends -x), +1 away
       speedMul: ratMul(rp.pace, 0.90, 1.12),
       shotMul: ratMul(rp.shoot, 0.82, 1.24),
       gkReach: 2.0 + ratMul(rp.skill, 0.0, 1.0),
-      kickAnim: 0, tagText: rp.n,
+      kickAnim: 0, tackleAnim: 0, tackleCd: 0, tagText: rp.n,
       pos: new THREE.Vector3(f.x * HALF_L * (side === -1 ? 1 : -1), 0, f.z * HALF_W),
       vel: new THREE.Vector3(),
       rot: side === -1 ? Math.PI / 2 : -Math.PI / 2,
@@ -701,14 +755,24 @@ makeTeam(1, TEAMS[1]);
 for (const p of players) {
   p.tagSprite = playerTag(p.name, p.team === -1 ? TEAMS[0].hex : TEAMS[1].hex);
   scene.add(p.tagSprite);
+  const kit = p.team === -1 ? TEAMS[0] : TEAMS[1];
+  p.faceSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: faceTexture(p.num + p.team*10, kit.skin, kit.hex), transparent: true, depthTest: false }));
+  p.faceSprite.scale.set(1.1, 1.1, 1); p.faceSprite.renderOrder = 997;
+  scene.add(p.faceSprite);
 }
 function refreshTags() {
   for (const p of players) {
     p.tagSprite.material.map.dispose();
+    const t = p.team === -1 ? TEAMS[G.homePick] : TEAMS[G.awayPick];
     const hex = p.team === -1 ? G.homeHex : G.awayHex;
     const nt = playerTag(p.name, hex);
     p.tagSprite.material.map = nt.material.map;
     p.tagSprite.material.needsUpdate = true;
+    if (p.faceSprite) {
+      p.faceSprite.material.map.dispose();
+      p.faceSprite.material.map = faceTexture(p.num + p.team*10, t.skin, t.hex);
+      p.faceSprite.material.needsUpdate = true;
+    }
   }
 }
 
@@ -747,6 +811,8 @@ const G = {
   matchLen: CFG.MATCH_SECONDS,
   homeHex: '#FF5A1F',
   awayHex: '#2BD9C4',
+  homePick: 0,
+  awayPick: 1,
   score: [0, 0],
   active: HOME[4],
   charge: 0,
@@ -766,6 +832,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyQ' && G.state === STATE.PLAY) switchPlayer();
   if (e.code === 'KeyR' && G.state === STATE.PLAY) startReplay('MANUAL');
   if (e.code === 'KeyE' && G.state === STATE.PLAY) tryPass(G.active);
+  if (e.code === 'KeyF' && G.state === STATE.PLAY) tryTackle(G.active);
   if (G.state === STATE.REPLAY && ['Space','Enter','Escape','KeyR'].includes(e.code)) endReplay();
 });
 addEventListener('keyup', e => {
@@ -895,6 +962,36 @@ function openness(m) {
   for (const o of players) if (o.team !== m.team) d = Math.min(d, dist2D(o.pos, m.pos));
   return clamp(d / 12, 0, 1);
 }
+function tryTackle(p) {
+  if (!p || p.tackleCd > 0) return;
+  p.tackleCd = .55;
+  p.tackleAnim = .3;
+  // reach a bit ahead of the player in facing direction
+  const reach = 2.4;
+  const fx = Math.sin(p.rot), fz = Math.cos(p.rot);
+  const tx = p.pos.x + fx * 1.2, tz = p.pos.z + fz * 1.2;
+  const near = dist2D({x:tx,z:tz}, ball.pos);
+  // must be close to the ball to do anything
+  if (near > reach) { thud(.25); return; }
+  // if an opponent owns it, contest based on skill
+  if (ball.owner && ball.owner.team !== p.team) {
+    const carrier = ball.owner;
+    const win = 0.35 + (p.skill - carrier.skill) / 140 + 0.15;  // skill gap tilts odds
+    if (Math.random() < clamp(win, 0.15, 0.85)) {
+      ball.owner = null; ball.lastTouch = p; ball.cooldown = .12;
+      // knock it to my feet
+      ball.vel.set(fx * 4, 0, fz * 4);
+      carrier.kickCd = .3;
+      thud(.55);
+    } else {
+      thud(.3);  // missed the tackle
+    }
+  } else if (!ball.owner) {
+    // loose ball -> claim it if in range
+    ball.owner = p; ball.lastTouch = p; thud(.4);
+  }
+}
+
 function releaseBall(p, cd) {
   ball.owner = null;
   ball.lastTouch = p;
@@ -949,6 +1046,10 @@ function aiPlayer(p, dt) {
       target.copy(ball.pos);
       target.x += ball.vel.x * .2; target.z += ball.vel.z * .2;
       sprint = true;
+      // lunge in if right on top of an opposing carrier
+      if (ball.owner && ball.owner.team !== p.team && dist2D(p.pos, ball.pos) < 2.2 && p.tackleCd <= 0) {
+        if (Math.random() < 0.5) tryTackle(p);
+      }
     } else {
       const goalSideX = clamp(baseX + ball.pos.x * .34, -HALF_L + 3, HALF_L - 3);
       target.set(goalSideX, 0, clamp(p.baseF.z * HALF_W * .8 + ball.pos.z * .42, -HALF_W + 2, HALF_W - 2));
@@ -1050,6 +1151,8 @@ function updatePlayers(dt) {
   for (const p of players) {
     p.kickCd = Math.max(0, p.kickCd - dt);
     p.kickAnim = Math.max(0, (p.kickAnim || 0) - dt);
+    p.tackleAnim = Math.max(0, (p.tackleAnim || 0) - dt);
+    p.tackleCd = Math.max(0, (p.tackleCd || 0) - dt);
     p.lunge = Math.max(0, p.lunge - dt);
     p.stamina = Math.min(1, p.stamina + dt * .07);
 
@@ -1083,6 +1186,16 @@ function applyPlayerPose(p, sp) {
   p.group.position.set(p.pos.x, 0, p.pos.z);
   p.group.rotation.y = p.rot;
   const swing = Math.sin(p.phase) * clamp(sp / CFG.SPRINT, 0, 1) * .85;
+  if (p.tackleAnim > 0) {
+    const k = p.tackleAnim / .3;                 // 1 -> 0
+    const ex = Math.sin((1 - k) * Math.PI);      // arc
+    p.legs[0].rotation.x = -1.5 * ex;            // sliding leg out
+    p.legs[1].rotation.x = 0.6 * ex;
+    p.arms[0].rotation.x = 0.9 * ex;
+    p.arms[1].rotation.x = 0.9 * ex;
+    p.torso.rotation.x = 0.5 * ex;               // lean into it
+    return;
+  }
   if (p.kickAnim > 0) {
     // planted left leg, right leg swings through the ball
     const k = p.kickAnim / .32;                 // 1 -> 0
@@ -1454,8 +1567,12 @@ function frame(now) {
     ring.visible = G.state === STATE.PLAY;
     ring.position.set(G.active.pos.x, .04, G.active.pos.z);
     for (const p of players) {
-      p.tagSprite.position.set(p.pos.x, 2.85, p.pos.z);
+      p.tagSprite.position.set(p.pos.x, 2.78, p.pos.z);
       p.tagSprite.visible = (G.state === STATE.PLAY || G.state === STATE.KICKOFF);
+      if (p.faceSprite) {
+        p.faceSprite.position.set(p.pos.x, 3.5, p.pos.z);
+        p.faceSprite.visible = (p === G.active);   // only float the face over your player
+      }
     }
     updateLiveCamera(dt);
   }
@@ -1475,9 +1592,13 @@ function teamCard(t, i) {
   b.dataset.i = i;
   const star = t.roster[4];
   b.innerHTML = `<div class="tc-bar" style="background:${t.hex}"></div>
+    <div class="tc-facewrap"></div>
     <div class="tc-city">${t.city}</div>
     <div class="tc-name">${t.name}</div>
     <div class="tc-stats"><span>OVR <b>${ovrOf(t)}</b></span><span>★ ${star.n}</span></div>`;
+  const fc = faceCanvas(5 /*FW*/ + i*10, t.skin, t.hex, 52);
+  fc.className = 'tc-face';
+  b.querySelector('.tc-facewrap').appendChild(fc);
   return b;
 }
 const homeGrid = document.getElementById('homeGrid');
@@ -1497,12 +1618,12 @@ function paintGrids() {
 homeGrid.addEventListener('click', e => {
   const b = e.target.closest('.team-card');
   if (!b || b.disabled) return;
-  homePick = +b.dataset.i; paintGrids();
+  homePick = +b.dataset.i; G.homePick = homePick; paintGrids();
 });
 awayGrid.addEventListener('click', e => {
   const b = e.target.closest('.team-card');
   if (!b || b.disabled) return;
-  awayPick = +b.dataset.i; paintGrids();
+  awayPick = +b.dataset.i; G.awayPick = awayPick; paintGrids();
 });
 paintGrids();
 
@@ -1583,6 +1704,7 @@ if (isTouch) {
   hold('btnPass',   () => { if (G.state === STATE.PLAY) tryPass(G.active); if (G.state === STATE.REPLAY) endReplay(); });
   hold('btnSprint', () => { touch.sprint = true; }, () => { touch.sprint = false; });
   hold('btnSwitch', () => { if (G.state === STATE.PLAY) switchPlayer(); if (G.state === STATE.REPLAY) endReplay(); });
+  hold('btnTackle', () => { if (G.state === STATE.PLAY) tryTackle(G.active); });
 
   // tapping the pitch during replay also skips
   document.getElementById('app').addEventListener('touchstart', () => {

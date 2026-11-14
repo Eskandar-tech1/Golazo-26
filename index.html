@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Golazo 27 · v6.1</title>
+<title>Golazo 27 · v6.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -1054,7 +1054,7 @@ body.touch-on .touch{display:block}
 
 // ---------------------------------------------------------------- CONFIG
 const CFG = {
-  PITCH_L: 190, PITCH_W: 124,         // playing surface (x, z) — big, easy to navigate
+  PITCH_L: 236, PITCH_W: 152,         // playing surface (x, z) — big, easy to navigate
   GOAL_W: 12, GOAL_H: 4, GOAL_D: 2.4,
   BALL_R: 0.42,
   GRAVITY: -24,
@@ -1075,7 +1075,7 @@ const COL = { volcanic: 0xFF5A1F, harbour: 0x2BD9C4, bone: 0xF2EDE3, ink: 0x0819
 // ---------------------------------------------------------------- RENDERER
 const app = document.getElementById('app');
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1086,7 +1086,7 @@ app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0A2028);
-scene.fog = new THREE.Fog(0x0A2028, 90, 190);
+scene.fog = new THREE.Fog(0x0A2028, 110, 250);
 
 const camera = new THREE.PerspectiveCamera(52, innerWidth / innerHeight, 0.5, 400);
 camera.position.set(0, 40, 58);
@@ -1102,7 +1102,7 @@ scene.add(new THREE.HemisphereLight(0x9FD3E0, 0x14301F, 0.66));
 const key = new THREE.DirectionalLight(0xFFF3E2, 1.15);
 key.position.set(38, 62, 26);
 key.castShadow = true;
-key.shadow.mapSize.set(1536, 1536);
+key.shadow.mapSize.set(2048, 2048);
 const sc = key.shadow.camera;
 sc.left = -60; sc.right = 60; sc.top = 46; sc.bottom = -46; sc.near = 1; sc.far = 180;
 key.shadow.bias = -0.0008;
@@ -2597,8 +2597,8 @@ function pollGamepad() {
   if (me && btn(6) && ball.owner === me) me.protect = true;
   if (edge(0)) { if (G.state === STATE.REPLAY) endReplay(); else if ((PL || SPc) && atk) pad.passCharging = true; else if (PL && !ball.owner) tryTackle(me); }
   if (!btn(0) && pad.passCharging) { pad.passCharging = false; if (me) tryPass(me, G.passCharge || 0); G.passCharge = 0; }
-  if (edge(1)) { if (G.state === STATE.REPLAY) endReplay(); else if ((PL || SPc) && atk) pad.charging = true; else if (PL) tryTackle(me); }
-  else if (!btn(1) && pad.charging) { pad.charging = false; if (me && G.charge > .06) { tryShoot(me, G.charge); G.charge = 0; } }
+  if (edge(1)) { if (G.state === STATE.REPLAY) endReplay(); else if (PL && atk && G._sTimer) shootDouble(); else if ((PL || SPc) && atk) pad.charging = true; else if (PL) tryTackle(me); }
+  else if (!btn(1) && pad.charging) { pad.charging = false; if (me) shootRelease(); }
   if (edge(2)) { if (PL || SPc) { if (atk) tryPass(me, .65); else if (PL) tryTackle(me); } }
   if (edge(3)) { if (G.state === STATE.REPLAY) endReplay(); else if (PL || SPc) { if (atk) tryPass(me, .9); else if (PL) switchPlayer(); } }
   if (edge(4)) { if (PL) switchPlayer(); }
@@ -2606,6 +2606,22 @@ function pollGamepad() {
   const rx = gp.axes[2] || 0, ry = gp.axes[3] || 0, rmag = Math.hypot(rx, ry);
   if (rmag > .85 && !pad._rs) { pad._rs = true; if (PL && atk) trySkill(me); } else if (rmag < .5) pad._rs = false;
   if (edge(9) || edge(8)) { if (G.state === STATE.FULLTIME) returnToMenu(); }
+}
+// SHOOT: hold = charged shot, quick tap = normal shot, DOUBLE-TAP = finesse curler (needs the FINESSE playstyle)
+function shootRelease() {
+  if (G._sSkipUp) { G._sSkipUp = false; G.charge = 0; return; }
+  const ch = G.charge || 0;
+  if (ch <= .06) return;
+  if (ch < .3 && !netGuest()) {
+    G.charge = 0;
+    if (G._sTimer) clearTimeout(G._sTimer);
+    const who = G.active;
+    G._sTimer = setTimeout(() => { G._sTimer = null; if (G.state === STATE.PLAY) tryShoot(who, Math.max(ch, .3)); }, 170);
+  } else { tryShoot(G.active, ch); G.charge = 0; }
+}
+function shootDouble() {
+  clearTimeout(G._sTimer); G._sTimer = null; G._sSkipUp = true; G.charge = 0;
+  if (G.active) tryShoot(G.active, has(G.active, 'finesse') ? .95 : .7, { finesse: true });
 }
 let _padType = null;
 function setPadGlyphs(gp) {
@@ -2630,6 +2646,7 @@ addEventListener('keydown', e => {
     clearTimeout(G._eTimer); G._eTimer = null; G._eSkipUp = true; G.passCharge = 0;
     tryPass(G.active, .5, { lob: true });
   }
+  if (e.code === 'Space' && G._sTimer && G.state === STATE.PLAY) shootDouble();     // second tap = FINESSE
   if (e.code === 'KeyR' && G.state === STATE.PLAY) startReplay('MANUAL');
   // KeyE now handled on keyup with charged power (see keyup handler)
   if (e.code === 'KeyF' && G.state === STATE.PLAY) tryTackle(G.active);
@@ -2638,10 +2655,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => {
   keys[e.code] = false;
-  if (e.code === 'Space' && G.state === STATE.PLAY && G.charge > 0.06) {
-    tryShoot(G.active, G.charge);
-    G.charge = 0;
-  }
+  if (e.code === 'Space' && G.state === STATE.PLAY) shootRelease();
   if (e.code === 'KeyE' && (G.state === STATE.PLAY || G.state === STATE.SETPIECE)) {
     if (G._eSkipUp) { G._eSkipUp = false; G.passCharge = 0; }
     else if ((G.passCharge || 0) < .35 && !netGuest()) {
@@ -2775,7 +2789,7 @@ function switchPlayer() {
 }
 
 // ---------------------------------------------------------------- BALL ACTIONS
-function tryShoot(p, charge) {
+function tryShoot(p, charge, opts) {
   if (netGuest()) return netAct('shoot', charge);
   if (G.state === STATE.SETPIECE && G.setPiece && G.setPiece.taker === p) {
     p.throwing = false; G.state = STATE.PLAY; G.setPiece = null;
@@ -2783,11 +2797,13 @@ function tryShoot(p, charge) {
   if (ball.owner !== p || p.shotWind) return;
   if (G.koHold > 0 && G.koTaker === p) return;          // the kick-off has to be PASSED
   // wind the leg back first; the ball leaves at the moment of the strike (see strikeShot)
+  p._finesseShot = !!(opts && opts.finesse);
   p.shotWind = { charge: clamp(charge, 0, 1) };
   p.kickAnim = .44; p.kickDur = .44;
 }
 function strikeShot(p, charge) {
   if (ball.owner !== p) return;
+  const fin = !!p._finesseShot; p._finesseShot = false;   // FINESSE = double-tap shoot
   let power = lerp(19, 36, clamp(charge, 0, 1)) * p.shotMul;
   const gx = targetGoalX(p);
   const dist = Math.abs(gx - ball.pos.x);
@@ -2795,7 +2811,7 @@ function strikeShot(p, charge) {
   const aim = new THREE.Vector3(gx - ball.pos.x, 0, clamp(-ball.pos.z * .35, -4, 4) - ball.pos.z).normalize();
   const face = new THREE.Vector3(Math.sin(p.rot), 0, Math.cos(p.rot));
   // POWER SHOT (full charge + LONG SHOT playstyle): a rocket placed in the corner away from the keeper, from way out
-  const blast = full && has(p, 'longshot') && dist > 14 && dist < 62 && face.dot(aim) > .3;
+  const blast = !fin && full && has(p, 'longshot') && dist > 14 && dist < 62 && face.dot(aim) > .3;
   if (blast) {
     const gk = players.find(o => o.team !== p.team && o.role === 'GK');
     const side = -Math.sign((gk && Math.abs(gk.pos.z) > .6) ? gk.pos.z : (ball.pos.z || 1));
@@ -2812,16 +2828,16 @@ function strikeShot(p, charge) {
     return;
   }
   if (has(p,'longshot') && dist > 22 && charge > 0.85) { power *= 1.28; popTrait(p,'longshot'); }
-  const inRange = Math.abs(gx - ball.pos.x) < ((full && has(p, 'finesse')) ? 50 : 34) && face.dot(aim) > 0.45;
-  if (has(p, 'finesse') && inRange && charge > .6) G.lastShot = { p, kind: 'finesse', ox: ball.pos.x, oz: ball.pos.z, t: performance.now() };
+  const inRange = Math.abs(gx - ball.pos.x) < ((fin && has(p, 'finesse')) ? 50 : 34) && face.dot(aim) > 0.45;
+  if (has(p, 'finesse') && inRange && fin) G.lastShot = { p, kind: 'finesse', ox: ball.pos.x, oz: ball.pos.z, t: performance.now() };
   else if (G.lastShot && G.lastShot.p === p) G.lastShot = null;
   // FINESSE MASTER: much stronger curl toward the goal + placement, on charged shots
   let blend = inRange ? .42 : 0;
-  if (has(p,'finesse') && inRange && charge > .85) { blend = .9; power *= (dist > 28 ? 1.4 : 1.1); popTrait(p,'finesse'); }
+  if (has(p,'finesse') && inRange && fin) { blend = .9; power *= (dist > 28 ? 1.4 : 1.1); popTrait(p,'finesse'); }
   const dir = inRange ? face.clone().lerp(aim, blend).normalize() : face;
   ball.vel.set(dir.x * power, lerp(3.5, 9, clamp(charge, 0, 1)) * (has(p,'finesse') ? .82 : 1), dir.z * power);
   ball._topBin = false; ball.passTo = null;
-  if (has(p,'finesse') && inRange && charge > .85) {
+  if (has(p,'finesse') && inRange && fin) {
     // FINESSE MASTER: lift it and bend it into the top corner (far post, just under the bar)
     const hv = Math.hypot(ball.vel.x, ball.vel.z) || 1, dxg = Math.abs(gx - ball.pos.x), tt = Math.max(.25, dxg / hv);
     const yT = CFG.GOAL_H - .75;
@@ -2833,14 +2849,14 @@ function strikeShot(p, charge) {
   if (inRange) {
     const sideT = clamp(Math.abs(ball.pos.z) / (HALF_W * 0.7), 0, 1);   // 0 central .. 1 wide
     let curlAmt = 6 + sideT * 10;
-    if (has(p,'finesse') && charge > .85) curlAmt += 18;
-    ball.curveTo = { x: gx, z: (has(p,'finesse') && charge > .85) ? -Math.sign(ball.pos.z || 1) * (CFG.GOAL_W / 2 - .55) : 0 };   // finesse: far-post top bin; otherwise goal centre
+    if (has(p,'finesse') && fin) curlAmt += 18;
+    ball.curveTo = { x: gx, z: (has(p,'finesse') && fin) ? -Math.sign(ball.pos.z || 1) * (CFG.GOAL_W / 2 - .55) : 0 };   // finesse: far-post top bin; otherwise goal centre
     ball.curveAmt = curlAmt;
     ball.spin = 0;
-    ball._wasFinesse = has(p,'finesse') && charge > .85;
+    ball._wasFinesse = has(p,'finesse') && fin;
   } else { ball.curveTo = null; ball.curveAmt = 0; }
   // FINESSE MASTER: start well wide of the far post and BEND it back in - a big, visible curl
-  if (has(p, 'finesse') && inRange && charge > .6) {
+  if (has(p, 'finesse') && inRange && fin) {
     const tx = gx, tz = -Math.sign(ball.pos.z || 1) * (CFG.GOAL_W / 2 - 1.1);
     let dx = tx - ball.pos.x, dz = tz - ball.pos.z; const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
     const th = clamp(1.0 + dl / 100, 1.0, 1.45) * Math.sign(tz || 1) * Math.sign(dx || 1);   // 32-57 degrees outside the target
@@ -3184,7 +3200,7 @@ function aiPlayer(p, dt) {
     if (p.think <= 0) {
       p.think = .18;
       const toGoal = Math.abs(gx - p.pos.x);
-      if (toGoal < 26 && Math.abs(p.pos.z) < 16 && Math.random() < .5) tryShoot(p, clamp((30 - toGoal) / 22, .35, 1));
+      if (toGoal < 26 && Math.abs(p.pos.z) < 16 && Math.random() < .5) tryShoot(p, clamp((30 - toGoal) / 22, .35, 1), { finesse: has(p, 'finesse') && toGoal > 12 });
       else if (has(p, 'tikitaka') && p._recvMate && (performance.now() - (p._recvT || 0)) < 450) tryPass(p);   // TIKI-TAKA one-touch
       else if (od < (has(p, 'tikitaka') ? 5 : 3.2) && Math.random() < (has(p, 'tikitaka') ? .9 : .55)) tryPass(p);
     }
@@ -3206,14 +3222,17 @@ function aiPlayer(p, dt) {
     const ballD = dist2D(p.pos, ball.pos);
     // primary presser: closest non-keeper. Also allow a forward to press if he's genuinely nearest.
     const isPrimary = (myRank === 0);
-    const isSupport = (myRank === 1 || myRank === 2);
-    if (isPrimary && ballD < 40) {
+    const isSupport = (myRank === 1);
+    if (ball.owner !== G._ownerSeen) { G._ownerSeen = ball.owner; G._ownerT = performance.now(); }
+    const justGot = ball.owner && ball.owner.team !== p.team && performance.now() - (G._ownerT || 0) < 750;   // reaction time after a pass
+    if (isPrimary && ballD < 30) {
       // charge the ball hard and try to win it
       target.copy(ball.pos);
       target.x += ball.vel.x * .25; target.z += ball.vel.z * .25;
-      sprint = !(G.koGrace > 0);
-      if (G.koGrace <= 0 && ball.owner && ball.owner.team !== p.team && ballD < 2.2 && p.tackleCd <= 0 && Math.random() < 0.55) tryTackle(p);
-    } else if (isSupport && ballD < 34 && p.role !== 'FW') {
+      sprint = !(G.koGrace > 0) && !justGot;
+      if (justGot && ballD < 8) { target.copy(p.pos); }   // jockey: don't dive straight onto a fresh pass
+      if (G.koGrace <= 0 && !justGot && ball.owner && ball.owner.team !== p.team && ballD < 2.2 && p.tackleCd <= 0 && Math.random() < 0.55) tryTackle(p);
+    } else if (isSupport && ballD < 22 && p.role !== 'FW') {
       // second/third man: cover the space just goal-side of the ball, ready to step in
       const gx = ownGoalX(p);
       const goalSide = Math.sign(gx - ball.pos.x) || -attackDir(p);
@@ -4287,7 +4306,7 @@ function updatePops(dt){
 }
 
 let last = performance.now(), simTime = 0, dtGlobal = 0.016;
-const perfMax = Math.min(window.devicePixelRatio || 1, 1.5); let perfPR = perfMax, perfAcc = 0, perfN = 0;
+const perfMax = Math.min(window.devicePixelRatio || 1, 2); let perfPR = perfMax, perfAcc = 0, perfN = 0;
 let __frameErr = false;
 function showFatal(msg) {
   if (__frameErr) return; __frameErr = true;
@@ -4315,8 +4334,8 @@ function frame(now) {
   perfAcc += dtRaw; perfN++;
   if (perfN >= 45) {   // adaptive resolution: drop the render scale on slow devices, raise it back when there is headroom
     const avg = perfAcc / perfN; perfAcc = 0; perfN = 0;
-    if (avg > .027 && perfPR > .6) { perfPR = Math.max(.6, perfPR - .2); renderer.setPixelRatio(perfPR); renderer.setSize(innerWidth, innerHeight); }
-    else if (avg < .0185 && perfPR < perfMax) { perfPR = Math.min(perfMax, perfPR + .1); renderer.setPixelRatio(perfPR); renderer.setSize(innerWidth, innerHeight); }
+    if (avg > .036 && perfPR > 1) { perfPR = Math.max(1, perfPR - .25); renderer.setPixelRatio(perfPR); renderer.setSize(innerWidth, innerHeight); }
+    else if (avg < .02 && perfPR < perfMax) { perfPR = Math.min(perfMax, perfPR + .25); renderer.setPixelRatio(perfPR); renderer.setSize(innerWidth, innerHeight); }
   }
   const dt = dtRaw * speedMul();
   dtGlobal = dt;
@@ -5696,7 +5715,7 @@ const CR_TASKS = [
   { id: 'four',   stat: 'four',  base: 1,  gg: 30, text: n => `Score 4+ goals in a single match` + (n > 1 ? ` (x${n})` : '') },
   { id: 'prest',  stat: 'prest', base: 3,  gg: 30, text: n => `Pack ${n} Golazo Prestige players` },
 ];
-function crFresh() { return { gg: 0, entered: [], owned: [], target: null, pity: 0, lastRoll: '', series: 1, done: {}, stats: { wins: 0, goals: 0, clean: 0, big: 0, streak: 0, four: 0, prest: 0 } }; }
+function crFresh() { return { gg: 0, entered: [], owned: [], target: null, pity: 0, tries: 0, lastRoll: '', series: 1, done: {}, stats: { wins: 0, goals: 0, clean: 0, big: 0, streak: 0, four: 0, prest: 0 } }; }
 let CR = crFresh();
 try { const raw = localStorage.getItem(CR_KEY); if (raw) CR = Object.assign(crFresh(), JSON.parse(raw)); CR.stats = Object.assign(crFresh().stats, CR.stats || {}); } catch (e) {}
 function crSave() { try { localStorage.setItem(CR_KEY, JSON.stringify(CR)); } catch (e) {} }
@@ -5706,7 +5725,7 @@ function crToast(msg) { const el = document.createElement('div'); el.className =
 function crCheckTasks() {
   let gained = 0;
   for (const t of CR_TASKS) {
-    if (!CR.done[t.id] && CR.stats[t.stat] >= crTarget(t)) { CR.done[t.id] = true; CR.gg += t.gg; gained += t.gg; crToast('✦ Task complete: ' + t.text(crTarget(t)) + '  +' + t.gg + ' Golazo Gems'); }
+    if (!CR.done[t.id] && CR.stats[t.stat] >= crTarget(t)) { CR.done[t.id] = true; CR.tries = (CR.tries | 0) + 1; gained++; crToast('✦ Task complete: ' + t.text(crTarget(t)) + '  +1 TRY TO PACK'); }
   }
   if (CR_TASKS.every(t => CR.done[t.id])) { CR.series++; CR.done = {}; CR.stats = crFresh().stats; setTimeout(() => crToast('✦ Series complete! Series ' + CR.series + ' unlocked (harder targets)'), 1800); }
   crSave();
@@ -5726,15 +5745,14 @@ function crOnPack(got) {
   if (!CR.entered.includes(got.n)) { CR.entered.push(got.n); setTimeout(() => crToast('✦ ' + got.n + ' entered CRYSTALLIZED PRESTIGE'), 600); }
   CR.stats.prest++; crCheckTasks();
 }
-function crGGText() { return CR_TESTER ? '∞ (test mode)' : String(CR.gg); }
+function crGGText() { return CR_TESTER ? '∞ (test mode)' : String(CR.tries | 0); }
 let crMsg = '';
 function crRoll() {
   const name = CR.target;
   if (!name || !CR.entered.includes(name) || (CR.owned.includes(name) && !CR_TESTER)) { crMsg = 'Pick an unlocked player to chase first.'; return renderDraftRoll(); }
   if (!CR_TESTER) {
-    if (CR.lastRoll === crToday()) { crMsg = 'You already used today\'s try. Come back tomorrow.'; return renderDraftRoll(); }
-    if (CR.gg < CR_COST) { crMsg = 'You need ' + CR_COST + ' Golazo Gems (you have ' + CR.gg + '). Finish more tasks.'; return renderDraftRoll(); }
-    CR.gg -= CR_COST; CR.lastRoll = crToday();
+    if ((CR.tries | 0) < 1) { crMsg = 'No tries left — complete a task to earn one.'; return renderDraftRoll(); }
+    CR.tries = (CR.tries | 0) - 1;
   }
   const chance = .10;
   if (Math.random() < chance) {
@@ -5749,26 +5767,26 @@ function crRoll() {
 }
 function renderCrystalMain() {
   const main = document.createElement('div'); main.className = 'draft-main crystal-main';
-  const used = !CR_TESTER && CR.lastRoll === crToday();
+  const used = !CR_TESTER && (CR.tries | 0) < 1;
   const chance = Math.round(.10 * 100);
   const top = document.createElement('div'); top.className = 'cr-top';
-  top.innerHTML = `<div><b>✦ ${crGGText()} Golazo Gems</b> ${CR_TESTER ? '<span class="cr-badge">TEST MODE · UNLIMITED</span>' : ''}</div>
+  top.innerHTML = `<div><b>🎟 ${crGGText()} Tries</b> ${CR_TESTER ? '<span class="cr-badge">TEST MODE · UNLIMITED</span>' : ''}</div>
     <div class="cr-help">${CR.entered.length}/${CR_BASE().length} unlocked · ${CR.owned.length} crystallized · Series ${CR.series}</div>`;
   main.appendChild(top);
   const help = document.createElement('div'); help.className = 'cr-help';
-  help.innerHTML = `Pack a player in <b>GOLAZO PRESTIGE</b> to unlock his <b>crystallized</b> version (125 OVR, boosted stats). Choose him below and spend <b>${CR_COST} Golazo Gems</b> on your <b>one try per day</b> to pack him. Golazo Gems come only from the task series.`;
+  help.innerHTML = `Pack a player in <b>GOLAZO PRESTIGE</b> to unlock his <b>crystallized</b> version (125 OVR, boosted stats). Choose him below and use a <b>TRY</b> — you earn <b>1 try for every task you complete</b> to pack him. Golazo Gems come only from the task series.`;
   main.appendChild(help);
   // roll
   const roll = document.createElement('div'); roll.className = 'cr-roll';
   const tname = CR.target && CR.entered.includes(CR.target) && (CR_TESTER || !CR.owned.includes(CR.target)) ? CR.target : null;
   roll.innerHTML = `<div><div>${tname ? 'Chasing: <b>' + tname + '</b>' : 'No target chosen'}</div>
-    <div class="cr-help">Chance this try: <b>${chance}%</b> · Cost: ${CR_TESTER ? 'free (test mode)' : CR_COST + ' ✦'} · ${CR_TESTER ? 'unlimited tries' : (used ? 'today\'s try used' : '1 try per day')}</div>
+    <div class="cr-help">Chance this try: <b>${chance}%</b> · ${CR_TESTER ? 'free (test mode) · unlimited tries' : 'Tries left: <b>' + (CR.tries | 0) + '</b> · complete tasks to earn more'}</div>
     ${crMsg ? '<div class="cr-msg">' + crMsg + '</div>' : ''}</div>`;
   const btn = document.createElement('button'); btn.textContent = 'TRY TO PACK ✦';
-  btn.disabled = !tname || (!CR_TESTER && (used || CR.gg < CR_COST));
+  btn.disabled = !tname || used;
   if (!tname) btn.textContent = 'PICK A PLAYER ↓';
-  else if (!CR_TESTER && used) btn.textContent = 'TRY AGAIN TOMORROW';
-  else if (!CR_TESTER && CR.gg < CR_COST) btn.textContent = 'NEED ' + CR_COST + ' ✦';
+  else if (used) btn.textContent = 'COMPLETE A TASK ✦';
+  else btn.textContent = 'TRY TO PACK ✦ (' + (CR_TESTER ? '∞' : CR.tries) + ')';
   btn.style.minWidth = '210px';
   btn.addEventListener('click', crRoll);
   roll.appendChild(btn);
@@ -5782,7 +5800,7 @@ function renderCrystalMain() {
   CR_TASKS.forEach(t => {
     const need = crTarget(t), have = Math.min(need, CR.stats[t.stat] || 0), done = !!CR.done[t.id];
     const row = document.createElement('div'); row.className = 'cr-task' + (done ? ' done' : '');
-    row.innerHTML = `<span>${done ? '✅' : '▫️'} ${t.text(need)} <small>(${have}/${need})</small></span><b>+${t.gg} ✦</b><div class="cr-bar"><i style="width:${Math.round(have / need * 100)}%"></i></div>`;
+    row.innerHTML = `<span>${done ? '✅' : '▫️'} ${t.text(need)} <small>(${have}/${need})</small></span><b>+1 TRY</b><div class="cr-bar"><i style="width:${Math.round(have / need * 100)}%"></i></div>`;
     tasks.appendChild(row);
   });
   main.appendChild(tasks);
@@ -5851,7 +5869,7 @@ function renderDraftRoll() {
 
   const bar = document.createElement('div'); bar.className = 'draft-bar';
   bar.innerHTML = `<span class="draft-bar-title">${pack.name} <span class="dbi">Draft</span></span>
-    ${pack.crystal ? `<span class="draft-bar-tokens">✦ <b>${crGGText()}</b> Golazo Gems</span>` : `<span class="draft-bar-tokens">✦ <b>${CR_TESTER ? '∞' : WALLET.gems}</b> gems · 🎫 <b>${CR_TESTER ? '∞' : WALLET.vouchers}</b> ${CR_TESTER ? '<span style="color:#7CFF9B">· free (test mode)</span>' : ''}</span>`}`;
+    ${pack.crystal ? `<span class="draft-bar-tokens">✦ <b>${crGGText()}</b> Tries</span>` : `<span class="draft-bar-tokens">✦ <b>${CR_TESTER ? '∞' : WALLET.gems}</b> gems · 🎫 <b>${CR_TESTER ? '∞' : WALLET.vouchers}</b> ${CR_TESTER ? '<span style="color:#7CFF9B">· free (test mode)</span>' : ''}</span>`}`;
   box.appendChild(bar);
 
   const layout = document.createElement('div'); layout.className = 'draft-layout';
@@ -6341,8 +6359,8 @@ if (isTouch) {
     el.addEventListener('touchstart', e => { e.preventDefault(); on(); }, { passive: false });
     el.addEventListener('touchend',   e => { e.preventDefault(); off && off(); }, { passive: false });
   };
-  hold('btnShoot', () => { if (G.state === STATE.PLAY) touch.charging = true; },
-                   () => { if (G.state === STATE.PLAY && G.charge > .06) { tryShoot(G.active, G.charge); G.charge = 0; } touch.charging = false; });
+  hold('btnShoot', () => { if (G.state === STATE.PLAY) { if (G._sTimer) shootDouble(); else touch.charging = true; } },
+                   () => { if (G.state === STATE.PLAY) shootRelease(); touch.charging = false; });
   hold('btnPass',   () => { if (G.state === STATE.PLAY) touch.passCharging = true; if (G.state === STATE.REPLAY) endReplay(); },
                     () => { if (G.state === STATE.PLAY) { tryPass(G.active, G.passCharge); G.passCharge = 0; } touch.passCharging = false; });
   hold('btnSprint', () => { touch.sprint = true; }, () => { touch.sprint = false; });

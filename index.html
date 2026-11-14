@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Golazo 27 · v6.2</title>
+<title>Golazo 27 · v6.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -475,6 +475,7 @@ body.replay .replay-strip{opacity:1;transform:none}
 .cr-roll button{font-family:var(--display);font-weight:700;font-size:16px;letter-spacing:.08em;padding:12px 26px;border-radius:12px;border:0;cursor:pointer;
   background:linear-gradient(135deg,#BFF4FF,#8FB6FF);color:#04182A}
 .cr-roll button:disabled{opacity:.4;cursor:not-allowed}
+.cr-roll.dock{position:sticky;bottom:0;z-index:30;background:rgba(6,20,26,.97);box-shadow:0 -10px 24px rgba(0,0,0,.55);border-color:rgba(123,231,255,.35);justify-content:space-between;margin-top:6px}
 .cr-msg{font-size:14px;color:#FFB4A8}
 .cr-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:100000;background:#06202E;color:#BFF4FF;border:1px solid #7BE7FF;border-radius:14px;padding:12px 20px;font-family:var(--display);letter-spacing:.06em;box-shadow:0 0 24px rgba(123,231,255,.5)}
 
@@ -542,6 +543,16 @@ body.replay .replay-strip{opacity:1;transform:none}
 .sp-team-ovr{position:absolute;left:10px;bottom:8px;z-index:3;background:rgba(10,17,20,.85);border:1px solid var(--line);border-radius:10px;padding:5px 10px;font-family:var(--display,sans-serif);letter-spacing:.1em;font-size:11px;color:var(--bone-dim)}
 .sp-team-ovr b{display:block;font-size:24px;color:#FFE27A;letter-spacing:0;line-height:1}
 .form-select label{display:block;font-size:10px;letter-spacing:.14em;color:var(--bone-dim);margin:0 0 4px}
+#fsBtn{position:fixed;top:8px;right:8px;z-index:9500;width:38px;height:38px;border-radius:10px;border:1px solid rgba(242,237,227,.25);background:rgba(8,20,26,.55);color:#F2EDE3;font-size:20px;cursor:pointer;line-height:1}
+#profBtn{position:absolute;top:0;right:0;z-index:20;padding:8px 14px;border-radius:999px;border:1px solid rgba(242,237,227,.25);background:rgba(8,20,26,.7);color:#F2EDE3;font-weight:700;font-size:12px;letter-spacing:.08em;cursor:pointer}
+#profOv{position:fixed;inset:0;z-index:9800;background:rgba(5,14,18,.97);display:flex;align-items:center;justify-content:center;padding:20px}
+#profOv .pf-in{max-width:460px;width:100%;text-align:center}
+#profOv h1{font-family:var(--display,sans-serif);letter-spacing:.08em;font-size:32px;margin:0 0 8px}
+#profOv p{color:var(--bone-dim,#9fb3ba);font-size:13px;line-height:1.5;margin:0 0 16px}
+#profOv .btn,#profOv button.pf{display:block;width:100%;margin:10px 0;padding:14px;font-size:16px}
+#profOv input{width:100%;box-sizing:border-box;margin:6px 0;padding:13px 14px;border-radius:10px;border:1px solid rgba(242,237,227,.25);background:rgba(242,237,227,.08);color:#F2EDE3;font-size:16px;text-align:center;letter-spacing:.12em}
+#profOv .pf-link{background:none;border:0;color:var(--bone-dim,#9fb3ba);text-decoration:underline;cursor:pointer;font-size:12px;margin-top:8px;width:auto;padding:4px;display:inline-block}
+#profOv .pf-err{color:#ff8a8a;font-size:13px;min-height:18px}
 #setupOv{position:fixed;inset:0;z-index:9000;background:rgba(5,14,18,.97);overflow:auto;display:flex;justify-content:center;padding:24px 16px}
 #setupOv .su-in{max-width:760px;width:100%}
 #setupOv h1{font-family:var(--display,sans-serif);letter-spacing:.08em;font-size:34px;margin:0 0 6px}
@@ -773,6 +784,7 @@ body.touch-on .touch{display:block}
 </div>
 <div id="app"></div>
 
+<button id="fsBtn" type="button" title="Fullscreen">⛶</button>
 <div id="hud">
   <div class="bars top"></div>
   <div class="bars bottom"></div>
@@ -858,6 +870,7 @@ body.touch-on .touch{display:block}
     <div>
       <!-- MAIN MENU LANDING -->
       <div class="mainmenu" id="mainMenu">
+      <button id="profBtn" type="button">👤 GUEST</button>
         <button class="panel drafts drafts-huge" id="mmDrafts">
           <canvas class="panel-char" id="mmDraftChar" width="300" height="90"></canvas>
           <span class="panel-ico">✦</span>
@@ -1047,6 +1060,7 @@ body.touch-on .touch{display:block}
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
+try { const _q = new URLSearchParams(location.search); if (_q.get('reset') === '1') { Object.keys(localStorage).filter(k => /^golazo/i.test(k)).forEach(k => localStorage.removeItem(k)); _q.delete('reset'); history.replaceState(null, '', location.pathname + (_q.toString() ? '?' + _q : '')); } } catch (e) {}
 /* =========================================================================
    GOLAZO 27  —  original browser football game
    Not affiliated with any real league, federation or publisher.
@@ -2859,13 +2873,14 @@ function strikeShot(p, charge) {
   if (has(p, 'finesse') && inRange && fin) {
     const tx = gx, tz = -Math.sign(ball.pos.z || 1) * (CFG.GOAL_W / 2 - 1.1);
     let dx = tx - ball.pos.x, dz = tz - ball.pos.z; const dl = Math.hypot(dx, dz) || 1; dx /= dl; dz /= dl;
-    const th = clamp(1.0 + dl / 100, 1.0, 1.45) * Math.sign(tz || 1) * Math.sign(dx || 1);   // 32-57 degrees outside the target
+    const th = clamp(.42 + dl / 220, .42, .66) * Math.sign(tz || 1) * Math.sign(dx || 1);   // 32-57 degrees outside the target
     const c = Math.cos(th), sn = Math.sin(th);
     const rx = dx * c - dz * sn, rz = dx * sn + dz * c;
     const spd = Math.hypot(ball.vel.x, ball.vel.z);
     ball.vel.x = rx * spd; ball.vel.z = rz * spd;
     const tt = Math.max(.3, dl / (spd * .85));
     ball.curveTo = { x: tx, z: tz }; ball.curveAmt = clamp(50 / tt, 46, 150);
+    ball._finY = CFG.GOAL_H - .8;   // aim for the top bin
     ball._wasFinesse = true; ball.spin = 0;
   }
   releaseBall(p, .34);
@@ -3684,6 +3699,11 @@ function updateBall(dt) {
       let nx = curX + (wantX - curX) * k, nz = curZ + (wantZ - curZ) * k;
       const nl = Math.hypot(nx, nz) || 1;
       ball.vel.x = nx/nl * sp; ball.vel.z = nz/nl * sp;
+      if (ball._wasFinesse && ball._finY != null && ball.pos.y > .3) {   // vertical homing: arrive exactly under the bar
+        const tt = Math.max(.05, Math.abs(ball.curveTo.x - ball.pos.x) / sp);
+        const needVy = (ball._finY - ball.pos.y - .5 * CFG.GRAVITY * tt * tt) / tt;
+        ball.vel.y += (needVy - ball.vel.y) * Math.min(1, 9 * dt);
+      }
       if (!ball._wasFinesse) ball.curveAmt *= (1 - dt * 0.6);
       if (ball.curveAmt < 0.5 || Math.abs(ball.pos.x - ball.curveTo.x) < (ball._wasFinesse ? .4 : (ball._topBin ? 1.2 : 6))) { ball.curveTo = null; ball.curveAmt = 0; }
     }
@@ -3704,7 +3724,7 @@ function updateBall(dt) {
   }
   if (ball.owner) {
     const p = ball.owner;
-    ball.tikiTo = null; ball.passTo = null; ball.curveTo = null; ball.curveAmt = 0; ball._wasFinesse = false; ball._topBin = false; ball.passHoming = 0; ball.passTarget = null; ball.elastico = null; ball.rainbow = null;
+    ball.tikiTo = null; ball.passTo = null; ball.curveTo = null; ball.curveAmt = 0; ball._wasFinesse = false; ball._finY = null; ball._topBin = false; ball.passHoming = 0; ball.passTarget = null; ball.elastico = null; ball.rainbow = null;
     const looseR = CFG.CONTROL_R * (has(p,'dribbler') ? 3.4 : 2.2);
     if (dist2D(p.pos, ball.pos) > looseR) { ball.owner = null; }
     else {
@@ -5529,7 +5549,64 @@ function showSetupOverlay() {
   });
   paint();
 }
-if (loadSetup()) { paintGrids(); autoFillSquad(); } else showSetupOverlay();
+/* ---------- PROFILE: guest or account (saved on this device; you can make an account any time) ---------- */
+const PROF_KEY = 'golazo_profile';
+function getProfile() { try { return JSON.parse(localStorage.getItem(PROF_KEY)); } catch (e) { return null; } }
+function setProfile(o) { try { localStorage.setItem(PROF_KEY, JSON.stringify(o)); } catch (e) {} paintProfBtn(); }
+function paintProfBtn() { const pr = getProfile(), b = document.getElementById('profBtn'); if (b) b.textContent = pr && pr.mode === 'account' ? '👤 ' + pr.name : '👤 GUEST'; if (pr && pr.mode === 'account') { const pn = document.getElementById('playerName'); if (pn && !pn.value) pn.value = pr.name; } }
+function resetEverything() { try { Object.keys(localStorage).filter(k => /^golazo/i.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) {} location.replace(location.pathname); }
+function profOverlay(html) { let ov = document.getElementById('profOv'); if (!ov) { ov = document.createElement('div'); ov.id = 'profOv'; document.body.appendChild(ov); } ov.innerHTML = '<div class="pf-in">' + html + '</div>'; return ov; }
+function profAccountForm(done, canBack) {
+  const ov = profOverlay(`<h1>CREATE ACCOUNT</h1><p>Choose a name and a 4-digit PIN. Your progress is kept on this device and you'll enter the PIN when you come back.</p>
+    <input id="pfName" maxlength="12" placeholder="NAME" autocomplete="off"><input id="pfPin" type="password" inputmode="numeric" maxlength="4" placeholder="4-DIGIT PIN" autocomplete="off">
+    <div class="pf-err" id="pfErr"></div><button class="btn" id="pfSave">SAVE &amp; PLAY</button>${canBack ? '<button class="pf pf-link" id="pfBack">back</button>' : ''}`);
+  ov.querySelector('#pfSave').addEventListener('click', () => {
+    const name = ov.querySelector('#pfName').value.trim().toUpperCase(), pin = ov.querySelector('#pfPin').value.trim();
+    if (!name) { ov.querySelector('#pfErr').textContent = 'Pick a name.'; return; }
+    if (!/^\d{4}$/.test(pin)) { ov.querySelector('#pfErr').textContent = 'PIN must be 4 digits.'; return; }
+    setProfile({ mode: 'account', name, pin }); ov.remove(); done && done();
+  });
+  const bk = ov.querySelector('#pfBack'); if (bk) bk.addEventListener('click', () => canBack());
+  setTimeout(() => { try { ov.querySelector('#pfName').focus(); } catch (e) {} }, 50);
+}
+function profChooser(done) {
+  const ov = profOverlay(`<h1>WELCOME TO GOLAZO 27</h1><p>Play as a guest, or create an account to lock your progress with a PIN. You can make an account any time from the 👤 button on the menu.</p>
+    <button class="btn" id="pfGuest">PLAY AS GUEST</button><button class="btn" id="pfAcct" style="background:transparent;border:1px solid rgba(242,237,227,.4)">CREATE ACCOUNT</button>`);
+  ov.querySelector('#pfGuest').addEventListener('click', () => { setProfile({ mode: 'guest' }); ov.remove(); done && done(); });
+  ov.querySelector('#pfAcct').addEventListener('click', () => profAccountForm(done, () => profChooser(done)));
+}
+function profLock(done) {
+  const pr = getProfile();
+  const ov = profOverlay(`<h1>WELCOME BACK, ${pr.name}</h1><p>Enter your PIN to continue.</p><input id="pfPin" type="password" inputmode="numeric" maxlength="4" placeholder="PIN" autocomplete="off">
+    <div class="pf-err" id="pfErr"></div><button class="btn" id="pfGo">UNLOCK</button><button class="pf pf-link" id="pfForgot">not you / forgot PIN? reset this device</button>`);
+  const tryIt = () => { if (ov.querySelector('#pfPin').value.trim() === pr.pin) { ov.remove(); paintProfBtn(); done && done(); } else ov.querySelector('#pfErr').textContent = 'Wrong PIN.'; };
+  ov.querySelector('#pfGo').addEventListener('click', tryIt);
+  ov.querySelector('#pfPin').addEventListener('keydown', e => { if (e.key === 'Enter') tryIt(); e.stopPropagation(); });
+  ov.querySelector('#pfForgot').addEventListener('click', () => { if (confirm('This wipes ALL progress on this device and starts you as a new player. Continue?')) resetEverything(); });
+}
+function profGate(done) { const pr = getProfile(); if (!pr) profChooser(done); else if (pr.mode === 'account') profLock(done); else { paintProfBtn(); done(); } }
+document.getElementById('profBtn').addEventListener('click', () => {
+  const pr = getProfile() || { mode: 'guest' };
+  const close = () => { const o = document.getElementById('profOv'); if (o) o.remove(); };
+  const panel = () => {
+    const ov = profOverlay(pr.mode === 'account'
+      ? `<h1>${pr.name}</h1><p>Account · progress saved on this device.</p><button class="btn" id="pfOut">LOG OUT</button><button class="btn" id="pfRst" style="background:transparent;border:1px solid #D64550;color:#ff8a8a">RESET ALL PROGRESS</button><button class="pf pf-link" id="pfX">close</button>`
+      : `<h1>GUEST</h1><p>You're playing as a guest. Create an account any time and keep everything you've earned.</p><button class="btn" id="pfMk">CREATE ACCOUNT</button><button class="btn" id="pfRst" style="background:transparent;border:1px solid #D64550;color:#ff8a8a">RESET ALL PROGRESS</button><button class="pf pf-link" id="pfX">close</button>`);
+    ov.querySelector('#pfX').addEventListener('click', close);
+    ov.querySelector('#pfRst').addEventListener('click', () => { if (confirm('Wipe ALL progress on this device and start as a new player?')) resetEverything(); });
+    const mk = ov.querySelector('#pfMk'); if (mk) mk.addEventListener('click', () => profAccountForm(() => { location.reload(); }, panel));
+    const out = ov.querySelector('#pfOut'); if (out) out.addEventListener('click', () => { close(); profLock(() => {}); });
+  };
+  panel();
+});
+// fullscreen (tablet / desktop): button + auto-enter on the first KICK OFF tap
+function goFullscreen() { const el = document.documentElement; try { if (document.fullscreenElement || document.webkitFullscreenElement) return; const r = (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen || (() => {})).call(el); if (r && r.catch) r.catch(() => {}); } catch (e) {} }
+function toggleFullscreen() { try { if (document.fullscreenElement || document.webkitFullscreenElement) (document.exitFullscreen || document.webkitExitFullscreen).call(document); else goFullscreen(); } catch (e) {} }
+document.getElementById('fsBtn').addEventListener('click', toggleFullscreen);
+document.getElementById('startBtn').addEventListener('click', goFullscreen);
+document.getElementById('mmKick').addEventListener('click', goFullscreen);
+function startFlow() { if (loadSetup()) { paintGrids(); autoFillSquad(); } else showSetupOverlay(); }
+profGate(startFlow);
 
 /* ---------- DRAFTS BUTTON CHARACTERS ---------- */
 (function draftChars(){
@@ -5790,7 +5867,6 @@ function renderCrystalMain() {
   btn.style.minWidth = '210px';
   btn.addEventListener('click', crRoll);
   roll.appendChild(btn);
-  main.appendChild(roll);
   if (!CR_TESTER) { const tl = document.createElement('div'); tl.className = 'cr-help'; tl.style.cssText = 'text-align:right;opacity:.55;cursor:pointer'; tl.innerHTML = '🔧 tester access <input id="crCode" type="text" placeholder="code" style="width:110px;margin-left:8px;background:rgba(242,237,227,.08);border:1px solid var(--line);color:var(--bone);border-radius:8px;padding:4px 8px"> <button id="crCodeGo" style="margin-left:4px;padding:4px 10px;border-radius:8px;border:0;cursor:pointer">OK</button>'; tl.style.cursor = 'default';
     main.appendChild(tl);
     tl.querySelector('#crCodeGo').addEventListener('click', () => crTesterSubmit(tl.querySelector('#crCode').value));
@@ -5816,6 +5892,7 @@ function renderCrystalMain() {
     grid.appendChild(cell);
   });
   main.appendChild(grid);
+  roll.classList.add('dock'); main.appendChild(roll);   // TRY TO PACK sits at the bottom, always reachable
   return main;
 }
 // TEST MODE: the tester owns every crystallized card too (everyone else has to earn them)

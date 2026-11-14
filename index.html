@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Golazo 27 · v5.9</title>
+<title>Golazo 27 · v6.0</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -5438,8 +5438,8 @@ function renderChallenges() {
   }
 }
 loadWallet();
-// every card in the game is yours
-(function ownEverything() {
+// TESTER (the creator) owns every card; everybody else starts with their club's default players and has to grind
+function ownEverything() {
   try {
     const cat = marketCatalogue(), names = new Set(cat.map(i => i.rp.n));
     collection = collection.filter(c => c.crystal || !names.has(c.n));
@@ -5447,6 +5447,18 @@ loadWallet();
     LEGEND_POOL.forEach((l, i) => { if (!signedLegends.includes(i)) signedLegends.push(i); });
     saveWallet();
   } catch (e) { console.warn('ownEverything', e); }
+}
+(function () {
+  let tester = false;
+  try { tester = localStorage.getItem('golazo_tester') === '1' || new URLSearchParams(location.search).get('tester') === '1'; } catch (e) {}
+  if (tester) { ownEverything(); return; }
+  // one-time clean-up: earlier versions handed everyone every card
+  try {
+    if (!localStorage.getItem('golazo_grind_v1')) {
+      collection = collection.filter(c => c.crystal); signedLegends = [];
+      localStorage.setItem('golazo_grind_v1', '1'); saveWallet();
+    }
+  } catch (e) {}
 })();
 loadChallenges();
 // ensure the main menu landing is shown on first load
@@ -5794,7 +5806,7 @@ crTesterAccess();
 function crTesterSubmit(code) {
   if (code && code.trim().toUpperCase() === 'ESKANDAR27') {
     try { localStorage.setItem('golazo_tester', '1'); } catch (e) {}
-    CR_TESTER = true; crTesterAccess(); crToast('✦ Tester access on'); renderDraftRoll();
+    CR_TESTER = true; ownEverything(); crTesterAccess(); crToast('✦ Tester access on'); renderDraftRoll();
   } else crToast('Wrong code');
 }
 const DRAFT_PACKS = [

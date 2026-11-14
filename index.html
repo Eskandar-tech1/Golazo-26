@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Golazo 27 · v6.0</title>
+<title>Golazo 27 · v6.1</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -1075,7 +1075,7 @@ const COL = { volcanic: 0xFF5A1F, harbour: 0x2BD9C4, bone: 0xF2EDE3, ink: 0x0819
 // ---------------------------------------------------------------- RENDERER
 const app = document.getElementById('app');
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1102,7 +1102,7 @@ scene.add(new THREE.HemisphereLight(0x9FD3E0, 0x14301F, 0.66));
 const key = new THREE.DirectionalLight(0xFFF3E2, 1.15);
 key.position.set(38, 62, 26);
 key.castShadow = true;
-key.shadow.mapSize.set(2048, 2048);
+key.shadow.mapSize.set(1536, 1536);
 const sc = key.shadow.camera;
 sc.left = -60; sc.right = 60; sc.top = 46; sc.bottom = -46; sc.near = 1; sc.far = 180;
 key.shadow.bias = -0.0008;
@@ -4287,6 +4287,7 @@ function updatePops(dt){
 }
 
 let last = performance.now(), simTime = 0, dtGlobal = 0.016;
+const perfMax = Math.min(window.devicePixelRatio || 1, 1.5); let perfPR = perfMax, perfAcc = 0, perfN = 0;
 let __frameErr = false;
 function showFatal(msg) {
   if (__frameErr) return; __frameErr = true;
@@ -4311,6 +4312,12 @@ function frame(now) {
 })();
   try {
   const dtRaw = Math.min(.05, (now - last) / 1000);
+  perfAcc += dtRaw; perfN++;
+  if (perfN >= 45) {   // adaptive resolution: drop the render scale on slow devices, raise it back when there is headroom
+    const avg = perfAcc / perfN; perfAcc = 0; perfN = 0;
+    if (avg > .027 && perfPR > .6) { perfPR = Math.max(.6, perfPR - .2); renderer.setPixelRatio(perfPR); renderer.setSize(innerWidth, innerHeight); }
+    else if (avg < .0185 && perfPR < perfMax) { perfPR = Math.min(perfMax, perfPR + .1); renderer.setPixelRatio(perfPR); renderer.setSize(innerWidth, innerHeight); }
+  }
   const dt = dtRaw * speedMul();
   dtGlobal = dt;
   last = now;
@@ -5759,6 +5766,10 @@ function renderCrystalMain() {
     ${crMsg ? '<div class="cr-msg">' + crMsg + '</div>' : ''}</div>`;
   const btn = document.createElement('button'); btn.textContent = 'TRY TO PACK ✦';
   btn.disabled = !tname || (!CR_TESTER && (used || CR.gg < CR_COST));
+  if (!tname) btn.textContent = 'PICK A PLAYER ↓';
+  else if (!CR_TESTER && used) btn.textContent = 'TRY AGAIN TOMORROW';
+  else if (!CR_TESTER && CR.gg < CR_COST) btn.textContent = 'NEED ' + CR_COST + ' ✦';
+  btn.style.minWidth = '210px';
   btn.addEventListener('click', crRoll);
   roll.appendChild(btn);
   main.appendChild(roll);
@@ -5823,6 +5834,15 @@ function tierForCount(n){
   if (n >= 10) return { key:'B', pool: ()=>POOL_B, design:'gold',     label:'Gold 88-90' };
   return              { key:'C', pool: ()=>POOL_C, design:'bronze',   label:'Silver 70-75' };
 }
+const DRAFT_COST = { 1: 25, 10: 200, 50: 900 };   // gems; win matches to earn them (the tester drafts free)
+function draftPay(n) {
+  if (CR_TESTER) return true;
+  const c = DRAFT_COST[n] || 25;
+  if (WALLET.gems >= c) WALLET.gems -= c;
+  else if (n === 1 && WALLET.vouchers > 0) WALLET.vouchers -= 1;
+  else { try { crToast('Need ' + c + ' ✦ gems — win matches to earn them'); } catch (e) {} flashWallet('Need ' + c + ' gems'); return false; }
+  saveWallet(); updateWalletHud(); return true;
+}
 function renderDraftRoll() {
   updateWalletHud();
   const box = document.getElementById('draftList');
@@ -5831,7 +5851,7 @@ function renderDraftRoll() {
 
   const bar = document.createElement('div'); bar.className = 'draft-bar';
   bar.innerHTML = `<span class="draft-bar-title">${pack.name} <span class="dbi">Draft</span></span>
-    ${pack.crystal ? `<span class="draft-bar-tokens">✦ <b>${crGGText()}</b> Golazo Gems</span>` : `<span class="draft-bar-tokens">🎫 <b>${draftTokens}</b> <span style="color:#7CFF9B">· free</span></span>`}`;
+    ${pack.crystal ? `<span class="draft-bar-tokens">✦ <b>${crGGText()}</b> Golazo Gems</span>` : `<span class="draft-bar-tokens">✦ <b>${CR_TESTER ? '∞' : WALLET.gems}</b> gems · 🎫 <b>${CR_TESTER ? '∞' : WALLET.vouchers}</b> ${CR_TESTER ? '<span style="color:#7CFF9B">· free (test mode)</span>' : ''}</span>`}`;
   box.appendChild(bar);
 
   const layout = document.createElement('div'); layout.className = 'draft-layout';
@@ -5867,8 +5887,8 @@ function renderDraftRoll() {
     const t = tierForCount(n);
     const b = document.createElement('button');
     b.className = 'draft-cta tier-' + t.design;
-    b.innerHTML = `<span class="cta-label">${n === 1 ? '1 DRAFT' : n + ' DRAFTS'}</span><span class="cta-cost">${t.label}</span>`;
-    b.addEventListener('click', () => openDraftCount(n));
+    b.innerHTML = `<span class="cta-label">${n === 1 ? '1 DRAFT' : n + ' DRAFTS'}</span><span class="cta-cost">${t.label} · ${CR_TESTER ? 'free' : DRAFT_COST[n] + ' ✦'}</span>`;
+    b.addEventListener('click', () => { if (draftPay(n)) openDraftCount(n); });
     btnRow.appendChild(b);
   });
   box.appendChild(btnRow);

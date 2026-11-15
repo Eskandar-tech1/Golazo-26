@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#06161c"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Golazo 27 · v7.2</title>
+<title>Golazo 27 · v7.3</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -903,6 +903,7 @@ body.touch-on .touch{display:block}
 <div id="app"></div>
 
 <div id="bootOv"><div class="boot-logo">GOLAZO <em>27</em></div><div class="boot-bar"><i></i></div><div class="boot-sub">KICKING OFF…</div></div>
+<script>setTimeout(function(){var b=document.getElementById("bootOv");if(b){b.classList.add("gone");setTimeout(function(){b.remove()},700)}},6000)</script>
 <button id="fsBtn" type="button" title="Fullscreen">⛶</button>
 <div id="hud">
   <div class="bars top"></div>
@@ -1209,8 +1210,17 @@ const COL = { volcanic: 0xFF5A1F, harbour: 0x2BD9C4, bone: 0xF2EDE3, ink: 0x0819
 
 // ---------------------------------------------------------------- RENDERER
 const app = document.getElementById('app');
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+let LOWGFX = false; try { LOWGFX = localStorage.getItem('golazo_lowgfx') === '1' || /[?&]low=1/.test(location.search); } catch (e) {}
+const renderer = new THREE.WebGLRenderer({ antialias: !LOWGFX, powerPreference: LOWGFX ? 'default' : 'high-performance' });
+renderer.setPixelRatio(LOWGFX ? 1 : Math.min(devicePixelRatio, 2));
+// a white screen means the tablet's GPU ran out of memory and dropped the 3D view: switch to light graphics and reload once
+renderer.domElement.addEventListener('webglcontextlost', e => {
+  e.preventDefault();
+  try {
+    localStorage.setItem('golazo_lowgfx', '1');
+    if (!sessionStorage.getItem('golazo_ctxreload') || Date.now() - +sessionStorage.getItem('golazo_ctxreload') > 15000) { sessionStorage.setItem('golazo_ctxreload', Date.now()); setTimeout(() => location.reload(), 400); }
+  } catch (err) { setTimeout(() => location.reload(), 400); }
+});
 renderer.setSize(innerWidth, innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -1237,7 +1247,7 @@ scene.add(new THREE.HemisphereLight(0x9FD3E0, 0x14301F, 0.66));
 const key = new THREE.DirectionalLight(0xFFF3E2, 1.15);
 key.position.set(38, 62, 26);
 key.castShadow = true;
-key.shadow.mapSize.set(2048, 2048);
+key.shadow.mapSize.set(LOWGFX ? 1024 : 2048, LOWGFX ? 1024 : 2048);
 const sc = key.shadow.camera;
 sc.left = -60; sc.right = 60; sc.top = 46; sc.bottom = -46; sc.near = 1; sc.far = 180;
 key.shadow.bias = -0.0008;
@@ -4962,10 +4972,11 @@ function updatePops(dt){
 }
 
 let last = performance.now(), simTime = 0, dtGlobal = 0.016;
-const perfMax = Math.min(window.devicePixelRatio || 1, 2); let perfPR = perfMax, perfAcc = 0, perfN = 0;
+const perfMax = LOWGFX ? 1 : Math.min(window.devicePixelRatio || 1, 2); let perfPR = perfMax, perfAcc = 0, perfN = 0;
 let __frameErr = false;
 function showFatal(msg) {
   if (__frameErr) return; __frameErr = true;
+  { const bo = document.getElementById('bootOv'); if (bo) bo.remove(); }   // the loading screen must never hide the error
   let d = document.getElementById('fatalBox');
   if (!d) {
     d = document.createElement('div'); d.id = 'fatalBox';

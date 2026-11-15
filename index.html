@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#06161c"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>Golazo 27 · v7.1</title>
+<title>Golazo 27 · v7.2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -2943,7 +2943,7 @@ function tryShoot(p, charge, opts) {
 function strikeShot(p, charge) {
   if (ball.owner !== p) return;
   const fin = !!p._finesseShot; p._finesseShot = false;
-  ball.shotId = (ball.shotId || 0) + 1; ball.shotTeam = p.team; ball.shotPow = charge; ball.curveAcc = null; ball.knuckle = null;
+  ball.shotId = (ball.shotId || 0) + 1; ball.shotTeam = p.team; ball.shotPow = charge; ball.curveAcc = null; ball.knuckle = null; ball._banger = false;
   if (MODE.kind === 'training' && MODE.tr && p.team === -1) { MODE.tr.shots++; setTimeout(trainHud, 0); }   // FINESSE = double-tap shoot
   let power = lerp(19, 36, clamp(charge, 0, 1)) * p.shotMul;
   const gx = targetGoalX(p);
@@ -2952,18 +2952,18 @@ function strikeShot(p, charge) {
   const aim = new THREE.Vector3(gx - ball.pos.x, 0, clamp(-ball.pos.z * .35, -4, 4) - ball.pos.z).normalize();
   const face = new THREE.Vector3(Math.sin(p.rot), 0, Math.cos(p.rot));
   // POWER SHOT (full charge + LONG SHOT playstyle): a rocket placed in the corner away from the keeper, from way out
-  const blast = !fin && full && has(p, 'longshot') && dist > 14 && dist < 62 && face.dot(aim) > .3;
+  const blast = !fin && full && dist > 14 && dist < 75 && face.dot(aim) > .3;   // EVERY full-power shot from range is a banger now
   if (blast) {
     const gk = players.find(o => o.team !== p.team && o.role === 'GK');
     const side = -Math.sign((gk && Math.abs(gk.pos.z) > .6) ? gk.pos.z : (ball.pos.z || 1));
-    const tz = side * (CFG.GOAL_W / 2 - 1.5);
+    const tz = side * (CFG.GOAL_W / 2 - 1.5) + randn() * (.35 + dist * .012);
     const dir = new THREE.Vector3(gx - ball.pos.x, 0, tz - ball.pos.z).normalize();
     const sp = Math.min(power * 1.6 + dist * .15, 68);
     const hv = sp * .86, tt = Math.max(.25, Math.abs(gx - ball.pos.x) / hv);
-    const yT = 2.0;
+    const yT = 2.6 + randn() * (.2 + dist * .006);
     ball.vel.set(dir.x * sp, clamp((yT - ball.pos.y + .5 * -CFG.GRAVITY * tt * tt) / tt, 1.5, 20), dir.z * sp);
-    ball._topBin = true; ball.curveTo = null; ball.curveAmt = 0; ball._wasFinesse = false; ball.fire = 1.2;
-    popTrait(p, 'longshot');
+    ball._topBin = true; ball._banger = true; ball.curveTo = null; ball.curveAmt = 0; ball._wasFinesse = false; ball.fire = 1.2;
+    if (has(p, 'longshot')) popTrait(p, 'longshot');
     G.lastShot = { p, kind: 'power', ox: ball.pos.x, oz: ball.pos.z, t: performance.now() };
     releaseBall(p, .34); thud(1.3);
     return;
@@ -3498,8 +3498,8 @@ function aiKeeper(p, dt) {
   }
   // save: within reach the keeper stops the ball; may CATCH (hold) or clear
   const d = dist2D(p.pos, ball.pos);
-  const reachHit = shotLive ? (Math.abs(ball.pos.x - p.pos.x) < 1.5 && Math.abs(ball.pos.z - p.pos.z) < .75 + p.gkReach * .3 + (p.diveTimer > 0 ? .8 : 0)) : (d < p.gkReach + (rushReach||0) + (p.diveTimer > 0 ? .9 : 0));
-  if (reachHit && ball.pos.y < (ball._topBin ? (p.diveTimer > 0 ? 2.9 : 2.3) : 3.2) && ball.cooldown <= 0) {
+  const reachHit = shotLive ? (Math.abs(ball.pos.x - p.pos.x) < 1.5 && Math.abs(ball.pos.z - p.pos.z) < (.75 + p.gkReach * .3 + (p.diveTimer > 0 ? .8 : 0)) * (ball._banger ? .6 : 1)) : (d < p.gkReach + (rushReach||0) + (p.diveTimer > 0 ? .9 : 0));
+  if (reachHit && ball.pos.y < (ball._topBin ? (ball._banger ? 2.1 : (p.diveTimer > 0 ? 2.9 : 2.3)) : 3.2) && ball.cooldown <= 0) {
     if (ball.owner === p) ball.owner = null;
     const shotSpeed = Math.hypot(ball.vel.x, ball.vel.z);
     // catch chance scales with skill; fast shots are parried, slow ones caught
@@ -4337,10 +4337,10 @@ function keeperReadShot(p) {
   const sk = clamp(((p.skill || 70) - 60) / 40, 0, 1);
   let diff = 0;
   if (ball.knuckle) diff += .2; if (ball.curveAcc || ball.curveTo) diff += .14; if (ball._topBin) diff += .14; if ((ball.shotPow || 0) > .8) diff += .1;
-  const pRead = clamp(.5 + sk * .32 - diff, .2, .85);
+  const pRead = clamp(.5 + sk * .32 - diff - (ball._banger ? .35 : 0), .1, .85);
   let tz = pr.z + (Math.random() - .5) * .8;
   if (Math.random() > pRead) tz = pr.z + (Math.random() < .5 ? -1 : 1) * (1.7 + Math.random() * 2.4);   // guessed wrong / late
-  let delay = Math.max(.1 + (1 - sk) * .12, pr.t - .42);
+  let delay = Math.max(.1 + (1 - sk) * .12, pr.t - .42) + (ball._banger ? .12 : 0);
   if (p.team === -1 && G.userDive != null) {          // YOU are the keeper in the shootout: your call decides
     tz = G.userDive * (G.soRight || 1) * 3.7; delay = .06;
   }
